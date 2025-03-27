@@ -1,0 +1,340 @@
+module delaunay
+    use quad_edge
+    use iso_c_binding
+        
+    type vec3f
+        real(8) :: x,y,z
+        character(len = 2) :: n
+    end type
+    
+    
+    type vec3i
+        integer(4) :: x,y,z
+    end type
+    
+    type mesh
+        type(vec3f), allocatable :: vert(:) ! position of vertices in 3d space
+        type(vec3i), allocatable :: tris(:) ! indices of the 3 edges constructing a triangle
+        integer(c_intptr_t) :: root         ! edge to start navigating at
+        integer(4) :: vc, tc
+    end type
+    
+    contains
+    
+    function add_vec3f(a,b) result (c)
+        type(vec3f) :: a,b,c
+        c%x = a%x + b%x
+        c%y = a%y + b%y
+        c%z = a%z + b%z
+    end function
+    
+    function sub_vec3f(a,b) result (c)
+        type(vec3f) :: a,b,c
+        c%x = a%x - b%x
+        c%y = a%y - b%y
+        c%z = a%z - b%z
+    end function
+    
+    function length_vec3f(a) result (l)
+        type(vec3f) :: a
+        real(8) :: l
+        l = sqrt(a%x**2 + a%y**2)
+    end function
+    
+    function equals_vec3f(a,b) result (l)
+        type(vec3f) :: a,b
+        logical :: l
+        l = (a%x == b%x) .AND. (a%y == b%y)
+    end function
+    
+    subroutine end_points(e,org,dest)
+        integer(c_intptr_t), intent(in) :: e
+        type(c_ptr), intent(in) :: dest, org
+        type(edge_struct), pointer :: tmp
+        integer :: io,id
+        io = (3 .and. (e .and. 2))+1
+        id = (3 .and. (e .and. 2) + 2)+1
+        
+        tmp => deref(e)
+        tmp%data(io) = org
+        tmp%data(id) = dest
+    end subroutine
+    
+    ! Add a new connecting edge between a and b, so
+    ! that all three edges have the same left face.
+    ! Data pointers are also set.
+    function connect (a,b) result (e)
+        integer(c_intptr_t) :: a,b,e
+        e = make_edge()
+        call end_points(e,DDATA(a), ODATA(b))
+        call splice(e,LNEXT(a))
+        call splice(SYM(e), b)
+    end function
+    
+    subroutine swap (e)
+        integer(c_intptr_t), intent(in) :: e
+        integer(c_intptr_t) :: a,b
+        a = OPREV(e)
+        b = SYM(OPREV(e))                   ! SYM(OPREV(e)) == RNEXT(e)
+        call splice (e, a)
+        call splice (SYM(e), b)             
+        call splice (e, LNEXT(a))           ! LNEXT(e) == DNEXT(e)
+        call splice (SYM(e), LNEXT(b))      ! LNEXT(b) == ONEXT(e)
+        call end_points(e, DDATA(a), DDATA(b))
+    end subroutine
+    
+    !-------------------------------!
+    !               c               !
+    !       tl ----------- tr       !
+    !       |       b   -   |       !
+    !     a |       -       | d     !
+    !       |   -           |       !
+    !       bl ----------- br       !
+    !               e               !
+    !-------------------------------!
+    
+    subroutine init (m,bl,tl,tr,br)
+        type(vec3f), target, intent(in) :: bl,tl,tr,br
+        type(mesh), intent(inout) :: m
+        type(vec3f), pointer :: t1,t2
+        type(edge_struct), pointer :: p1, p2, p3
+        integer(c_intptr_t) :: a, b, c, d, e
+        
+        a = make_edge()
+        b = make_edge()
+        c = make_edge()
+        
+        p1 => deref(a)
+        p2 => deref(b)
+        p3 => deref(c)
+        print *, a,b,c
+        
+        t1 => tl
+        t2 => bl
+        call end_points(a,c_loc(t1),c_loc(t2))    
+        t1 => bl
+        t2 => tr
+        call end_points(b,c_loc(t1),c_loc(t2))
+        t1 => tr
+        t2 => tl
+        call end_points(c,c_loc(t1), c_loc(t2))
+        call splice(SYM(a),b)
+        call splice(SYM(b),c)
+        call splice(SYM(c),a)
+        
+        !d = make_edge()
+        !call splice(c, d)
+        !t1 => tr
+        !t2 => br
+        !call end_points(d, c_loc(t1), c_loc(t2))
+        !
+        !e = make_edge()
+        !call splice(SYM(d),e)
+        !t1 => br
+        !t2 => bl
+        !call end_points(e, c_loc(t1),c_loc(t2))
+        
+        !print *, a, ONEXT(a), DPREV(a)
+        !print *, b, ONEXT(b), DPREV(b)
+        !print *, c, ONEXT(c), DPREV(c)
+        
+     
+        print *, "e:"
+        print *, org(a), dest(a), a
+        print *, "SYM(e):"
+        print *, "----------------------------"
+        print *, org(SYM(a)), dest(SYM(a)), SYM(a)
+        print *, "LPREV(e):"
+        print *, org(LPREV(a)), dest(LPREV(a)), LPREV(a)
+        print *, "ONEXT(e):"
+        print *, org(ONEXT(a)), dest(ONEXT(a)), ONEXT(a)
+        print *, "DPREV(e):"
+        print *, org(DPREV(a)), dest(DPREV(a)), DPREV(a)
+        print *, "LNEXT(e):"
+        print *, org(LNEXT(a)), dest(LNEXT(a)), LNEXT(a)
+        print *, "-----------------------------"
+        print *, "OPREV(e):"
+        print *, org(OPREV(a)), dest(OPREV(a)), OPREV(a)
+        print *, "RNEXT(e):"
+        print *, org(RNEXT(a)), dest(RNEXT(a)), RNEXT(a)
+        print *, "RPREV(e):"
+        print *, org(RPREV(a)), dest(RPREV(a)), RPREV(a)
+        print *, "DNEXT(e):"
+        print *, org(DNEXT(a)), dest(DNEXT(a)), DNEXT(a)
+        
+        !print *, LNEXT(a) == b, LNEXT(b) == c, LNEXT(c) == a
+        
+        m%root = a
+    end subroutine
+        
+    subroutine v_proc (edge,closure)
+        integer(c_intptr_t), intent(in) :: edge
+        type(c_ptr), intent(in) :: closure
+        print *, "Traversed edge at: ", edge, ", org: ", org(edge), ", dest: ", dest(edge)
+    end subroutine
+    
+    function org(e) result (vec)
+        type(vec3f), pointer :: vec
+        integer(c_intptr_t) :: e
+       
+        call c_f_pointer(ODATA(e),vec)
+    end function
+    
+    function dest(e) result (vec)
+        type(vec3f), pointer :: vec
+        integer(c_intptr_t) :: e
+        
+        call c_f_pointer(DDATA(e),vec)
+    end function
+    
+    
+    
+    ! Twice the area of the triangle, positive if ccw
+    function tri_area(a,b,c) result (area)
+        type(vec3f) :: a,b,c
+        real(8) :: area
+        area = (b%x - a%x) * (c%y - a%y) - (b%y - a%y) * (c%x - a%x)
+    end function
+    
+    function in_circle(a,b,c,d) result (l)
+        type(vec3f) :: a,b,c,d
+        logical :: l
+        
+        l = (a%x**2 + a%y**2) * tri_area(b,c,d) - &
+          & (b%x**2 + b%y**2) * tri_area(a,c,d) + &
+          & (c%x**2 + c%y**2) * tri_area(a,b,d) - &
+          & (d%x**2 + d%y**2) * tri_area(a,b,c) > 0
+        
+    end function
+    
+    function ccw (a,b,c) result(l)
+        type(vec3f) :: a,b,c
+        logical :: l
+        l = tri_area(a,b,c) > 0
+    end function
+    
+    function right_of (p,e) result (l)
+        type(vec3f) :: p
+        integer(c_intptr_t) :: e
+        logical :: l
+        l = ccw(p,dest(e), org(e))
+    end function
+    
+    function left_of (p,e) result (l)
+        type(vec3f) :: p
+        integer(c_intptr_t) :: e
+        logical :: l
+        l = ccw(p,org(e), dest(e))
+    end function
+    
+    function on_edge(p,e) result (l)
+        type(vec3f) :: p, o, d
+        integer(c_intptr_t) :: e
+        logical :: l
+        real(8) :: t1,t2,t3,m
+        real(8), parameter :: EPS = 1e-3
+        
+        o = org(e)
+        d = dest(e)
+        t1 = length_vec3f(sub_vec3f(p,o))
+        t2 = length_vec3f(sub_vec3f(p,d))
+        
+        if (t1 < EPS .OR. t2 < EPS) then
+            l = .TRUE.
+            return
+        end if
+        t3 = length_vec3f(sub_vec3f(o, d))
+        
+        if (t1 > t3 .or. t2 > t3) then
+            l = .TRUE.
+            return
+        end if
+        
+        l = abs(tri_area(p,o,d)) < EPS * 2 * t3
+    end function
+    
+    function locate(del, p) result (e)
+        type(mesh) :: del
+        type(vec3f) :: p
+        integer(c_intptr_t) :: e
+        e = del%root
+        
+        do while (.TRUE.)
+            if (equals_vec3f(p,org(e)) .OR. equals_vec3f(p,dest(e))) then
+                return
+            else if (right_of(p,e)) then
+                e = SYM(e)
+            else if (.NOT. right_of(p,ONEXT(e))) then
+                e = ONEXT(e)
+            else if (.NOT. right_of(p,DPREV(e))) then
+                e = DPREV(e)
+            else
+                return
+            end if
+        end do
+    end function
+    
+    
+    subroutine insert_site (del,p)
+        type(mesh), intent(inout) :: del
+        type(vec3f), intent(in), target :: p
+        integer(c_intptr_t) :: e,b,s,t
+        type(vec3f), pointer :: tmp
+        
+        e = locate(del,p)
+        
+        if (equals_vec3f(p,org(e)) .OR. equals_vec3f(p,dest(e))) then
+            return
+        else if (on_edge(p,e)) then
+            e = OPREV(e)
+            call destroy_edge(e)
+        end if
+        
+        b = make_edge()
+        tmp => p
+        
+        call end_points(b, ODATA(e), c_loc(tmp))
+        !call splice(b,e)
+        s = e
+        
+        !print *, e, ONEXT(e), ONEXT(ONEXT(e)), ONEXT(ONEXT(ONEXT(e))) 
+        print *, "s:", org(s), dest(s), s
+        
+        b = connect(e,SYM(b))
+        e = OPREV(b)
+        print *, "-------------------------------"
+        print *, "new edge:"
+        print *, org(b), dest(b)
+        print *, "ONEXT(new edge):"
+        print *, org(ONEXT(b)), dest(ONEXT(b))
+        print *, "OPREV(new edge):"
+        print *, org(OPREV(b)), dest(OPREV(b))
+        
+        
+        do while (e /= s)
+            b = connect(e,SYM(b))
+            e = OPREV(b)
+            print *, "-------------------------------"
+            print *, "new edge:"
+            print *, org(b), dest(b)
+            print *, "ONEXT(new edge):"
+            print *, org(ONEXT(b)), dest(ONEXT(b))
+            print *, "OPREV(new edge):"
+            print *, org(OPREV(b)), dest(OPREV(b))
+        end do
+        
+        do while (.TRUE.)
+            t = OPREV(e)
+            if (right_of(dest(t),e) .AND. in_circle(org(e),dest(t), dest(e), p)) then
+                call swap(e)
+                e = OPREV(e)
+            else if (ONEXT(e) == s) then
+                return
+            else
+                e = LPREV(ONEXT(e))
+            end if
+        end do
+    end subroutine
+    
+    
+end module

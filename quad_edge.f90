@@ -1,0 +1,304 @@
+module quad_edge
+    use iso_c_binding
+    implicit none
+    
+    !---------------------------------------!
+    !   Interface for quad_enum callback    !
+    !---------------------------------------!
+    abstract interface      
+        subroutine visit_proc(edge,closure)
+            use iso_c_binding, only: c_intptr_t, c_ptr
+            integer(c_intptr_t), intent(in) :: edge
+            type(c_ptr), intent(in) :: closure
+        end subroutine
+    end interface
+    
+    type edge_struct
+        integer(c_intptr_t) :: next(4)
+        type(c_ptr) :: data(4)
+        integer(c_int64_t) :: mark
+    end type
+    
+    integer(c_int64_t) :: nextMark = 1
+    
+    private nextMark, quad_do_enum
+    
+    contains
+    
+    function deref (e) result (edge)
+        integer(c_intptr_t) :: e
+        type(c_ptr) :: p
+        type(edge_struct), pointer :: edge
+        p = TRANSFER(ISHFT(ISHFT(e,-2),2),p)
+        call c_f_pointer(p,edge)
+    end function
+    
+    !-----------------------------------------------!
+    !           Edge orientation operators          !
+    !-----------------------------------------------!
+    
+    function ROT (e) result (rot_e)
+        integer(c_intptr_t) :: e, rot_e
+        rot_e = ISHFT(ISHFT(e,-2),2) + ((e+1) .AND. 3)
+    end function
+    
+    function SYM (e) result (sym_e)
+        integer(c_intptr_t) :: e, sym_e
+        sym_e = ISHFT(ISHFT(e,-2),2) + ((e+2) .AND. 3)
+    end function
+    
+    function TOR (e) result (tor_e)
+        integer(c_intptr_t) :: e, tor_e
+        tor_e = ISHFT(ISHFT(e,-2),2) + ((e+3) .AND. 3)
+    end function
+    
+    !-------------------------------------------!
+    !       Vertex/face walking operators       !
+    !-------------------------------------------!
+    
+    function ONEXT (e) result (onext_e)
+        integer(c_intptr_t) :: e, onext_e
+        type(edge_struct), pointer :: edge
+        edge => deref(e)
+        onext_e = edge%next((e .AND. 3)+1)
+    end function
+    
+    function ROTRNEXT (e) result (rotrnext_e)
+        integer(c_intptr_t) :: e, rotrnext_e
+        type(edge_struct), pointer :: edge
+        edge => deref(e)
+        rotrnext_e = edge%next(((e+1) .AND. 3)+1)
+    end function
+    
+    function SYMDNEXT (e) result (symdnext_e)
+        integer(c_intptr_t) :: e, symdnext_e
+        type(edge_struct), pointer :: edge
+        edge => deref(e)
+        symdnext_e = edge%next(((e+2) .AND. 3)+1)
+    end function
+    
+    function TORLNEXT (e) result (torlnext_e)
+        integer(c_intptr_t) :: e, torlnext_e
+        type(edge_struct), pointer :: edge
+        edge => deref(e)
+        torlnext_e = edge%next(((e+3) .AND. 3)+1)
+    end function
+
+    function RNEXT (e) result (rnext_e)
+        integer(c_intptr_t) :: e, rnext_e
+        rnext_e = ROT(ROTRNEXT(e))
+    end function
+    
+    function DNEXT (e) result (dnext_e)
+        integer(c_intptr_t) :: e, dnext_e
+        dnext_e = SYM(SYMDNEXT(e))
+    end function
+    
+    function LNEXT (e) result (lnext_e)
+        integer(c_intptr_t) :: e, lnext_e
+        lnext_e = TOR(TORLNEXT(e))
+    end function
+    
+
+    
+    function OPREV (e) result (oprev_e)
+        integer(c_intptr_t) :: e, oprev_e
+        oprev_e = TOR(ROTRNEXT(e))
+    end function
+    
+    function DPREV (e) result (dprev_e)
+        integer(c_intptr_t) :: e, dprev_e
+        dprev_e = ROT(TORLNEXT(e))
+    end function
+    
+    function RPREV (e) result (rprev_e)
+        integer(c_intptr_t) :: e, rprev_e
+        rprev_e = SYMDNEXT(e)
+    end function
+    
+    function LPREV (e) result (lprev_e)
+        integer(c_intptr_t) :: e, lprev_e
+        lprev_e = SYM(ONEXT(e))
+    end function
+    
+    !---------------------------------------!
+    !             Data Pointers             !
+    !---------------------------------------!
+    
+    
+    function ODATA (e) result (odata_v)
+        integer(c_intptr_t) :: e
+        type(c_ptr) :: odata_v
+        type(edge_struct), pointer :: edge
+        edge => deref(e)
+        odata_v = edge%data((e .AND. 3)+1)
+    end function
+    
+    function RDATA (e) result (rdata_v)
+        integer(c_intptr_t) :: e
+        type(c_ptr) :: rdata_v
+        type(edge_struct), pointer :: edge
+        edge => deref(e)
+        rdata_v = edge%data(((e+1) .AND. 3)+1)
+    end function
+    
+    function DDATA (e) result (ddata_v)
+        integer(c_intptr_t) :: e
+        type(c_ptr) :: ddata_v
+        type(edge_struct), pointer :: edge
+        edge => deref(e)
+        ddata_v = edge%data(((e+2) .AND. 3)+1)
+    end function
+    
+    function LDATA (e) result (ldata_v)
+        integer(c_intptr_t) :: e
+        type(c_ptr) :: ldata_v
+        type(edge_struct), pointer :: edge
+        edge => deref(e)
+        ldata_v = edge%data(((e+3) .AND. 3)+1)
+    end function
+    
+    !-------------------------------!
+    !       Make a new edge         !
+    !-------------------------------!
+    
+    function make_edge () result (e)
+        type(edge_struct), pointer :: edge
+        type(c_ptr) :: p
+        integer(c_intptr_t) :: e
+        allocate(edge)
+        p = c_loc(edge)
+        e = TRANSFER(p,e)
+
+        
+        edge%next(1) = e
+        edge%next(3) = SYM(e)   ! SYMDNEXT
+        edge%next(2) = ROT(e)   ! ROTRNEXT
+        edge%next(4) = TOR(e)   ! TORLNEXT
+        edge%data = c_null_ptr
+        edge%mark = 0
+    end function
+    
+    !---------------------------!
+    !       Delete an edge      !
+    !---------------------------!
+    
+    subroutine destroy_edge (e)
+        integer(c_intptr_t), intent(in) :: e
+        integer(c_intptr_t) :: f
+        type(edge_struct), pointer :: edge
+        
+        f = SYM(e)
+    
+        if (ONEXT(e) /= e) then
+            call splice(e,OPREV(e))
+        end if
+        if (ONEXT(f) /= f) then
+            call splice(f,OPREV(f))
+        end if
+    
+        edge => deref(e)
+        edge%next = 0
+        edge%data = c_null_ptr
+        deallocate(edge)
+    end subroutine
+    
+    !-------------------------------!
+    !       Splice primitive        !
+    !-------------------------------!
+    subroutine splice(a,b)
+        integer(c_intptr_t), intent(in) :: a, b    
+        integer(c_intptr_t) ::alpha, beta, t1,t2,t3,t4
+        type(edge_struct), pointer :: tmp
+        
+        alpha = ROT(ONEXT(a))
+        beta = ROT(ONEXT(b))
+        t1 = ONEXT(a)
+        t2 = ONEXT(b)
+        t3 = ONEXT(alpha)
+        t4 = ONEXT(beta)
+        
+        tmp => deref(t1)
+        tmp%next((t1 .AND. 3)+1) = t2
+        tmp => deref(t2)
+        tmp%next((t2 .AND. 3)+1) = t1
+        
+        tmp => deref(t3)
+        tmp%next((t3 .AND. 3)+1) = t4
+        tmp => deref(t4)
+        tmp%next((t4 .AND. 3)+1) = t3
+        tmp => NULL()
+    end subroutine
+    
+    !-------------------------------------------------------------------------------!
+    !   Enumerates undirected primal edges reachable from $a$.                      !
+    !                                                                               !
+    !   Calls visit_proc(e, closure) for every edge $e$ that can be reached from    !
+    !   edge $a$ by a chain of SYM and ONEXT calls; except that exactly one         !
+    !   of $e$ and SYM(e) is visited.                                               !
+    !-------------------------------------------------------------------------------!
+    subroutine quad_enum(a,v_proc,closure)
+        integer(c_intptr_t), intent(in) :: a
+        procedure(visit_proc) :: v_proc
+        type(c_ptr),intent(in) :: closure
+        integer(c_int64_t) :: mark
+        mark = nextMark
+        nextMark = nextMark + 1
+        
+        if (nextMark == 0) then 
+            nextMark = 1
+        end if
+        
+        call quad_do_enum(a,v_proc,closure,mark)
+    end subroutine
+    
+    recursive subroutine quad_do_enum(a,v_proc,closure,mark)
+        integer(c_intptr_t) :: a
+        procedure(visit_proc) :: v_proc
+        type(c_ptr),intent(in) :: closure
+        type(edge_struct), pointer :: edge
+        integer(c_int64_t), intent(in) :: mark
+        
+        do while (deref(a)%mark /= mark)
+            call v_proc(a,closure)
+            edge => deref(a)
+            edge%mark = mark
+            call quad_do_enum(ONEXT(SYM(a)), v_proc, closure, mark)
+            a = ONEXT(a)
+        end do
+        edge => NULL()
+    end subroutine
+    
+    subroutine test_print(e,c)
+        integer(c_intptr_t), intent(in) :: e
+        type(c_ptr), intent(in) :: c
+        type(edge_struct), pointer :: edge
+        edge => deref(e)
+        print *, "Pass through edge at: " ,e
+        edge => NULL()
+    end subroutine 
+    
+    
+    
+    
+    ! Ported from C to Fortran by Erik Schellenberger @ Siemens Energy Global Gmbh, Goerlitz
+    
+    
+    ! Copyright notice:
+    !
+    ! Copyright 1996 Institute of Computing, Unicamp.
+    !
+    ! Permission to use this software for any purpose is hereby granted,
+    ! provided that any substantial copy or mechanically derived version
+    ! of this file that is made available to other parties is accompanied
+    ! by this copyright notice in full, and is distributed under these same
+    ! terms. 
+    !
+    ! DISCLAIMER: This software is provided "as is" with no explicit or
+    ! implicit warranty of any kind.  Neither the authors nor their
+    ! employers can be held responsible for any losses or damages
+    ! that might be attributed to its use.
+    !
+    ! End of copyright notice.
+    
+end module
