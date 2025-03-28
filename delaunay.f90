@@ -67,7 +67,7 @@ module delaunay
         integer(c_intptr_t) :: a,b,e
         e = make_edge()
         call end_points(e,DDATA(a), ODATA(b))
-        call splice(e,LNEXT(a))
+        call splice(e,LNEXT_(a))
         call splice(SYM(e), b)
     end function
     
@@ -113,18 +113,17 @@ module delaunay
         print *, ccw(tl,bl,tr)
         
         
+        
+        
+        call splice(SYM(a),b)
+        c = connect(b,a)
+        
         t1 => tl
         t2 => bl
         call end_points(a,c_loc(t1),c_loc(t2))    
         t1 => bl
         t2 => tr
         call end_points(b,c_loc(t1),c_loc(t2))
-        
-        
-        
-        call splice(SYM(a),b)
-        c = connect(b,a)
-            
         t1 => tr
         t2 => tl
         call end_points(c,c_loc(t1), c_loc(t2))
@@ -144,6 +143,8 @@ module delaunay
         !call end_points(e, c_loc(t1),c_loc(t2))
         
         call debug(a)
+        call debug(b)
+        call debug(c)
         
         
         
@@ -188,9 +189,9 @@ module delaunay
         print *, org(LNEXT(e)), dest(LNEXT(e)), LNEXT(e)
         print *, "-----------------------------"
         print *, "OPREV(e):"
-        print *, org(OPREV(e)), dest(OPREV(e)), OPREV(e)
+        print *, org(OPREV_(e)), dest(OPREV_(e)), OPREV_(e)
         print *, "RNEXT(e):"
-        print *, org(RNEXT(e)), dest(RNEXT(e)), RNEXT(e)
+        print *, org(RNEXT_(e)), dest(RNEXT_(e)), RNEXT_(e)
         print *, "RPREV(e):"
         print *, org(RPREV(e)), dest(RPREV(e)), RPREV(e)
         print *, "DNEXT(e):"

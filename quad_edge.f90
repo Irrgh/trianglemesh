@@ -273,25 +273,36 @@ module quad_edge
     !-------------------------------!
     subroutine splice(a,b)
         integer(c_intptr_t), intent(in) :: a, b    
-        integer(c_intptr_t) ::alpha, beta, t1,t2,t3,t4
+        integer(c_intptr_t), target :: alpha, beta, t1,t2,t3,t4
         type(edge_struct), pointer :: tmp
+        integer(c_intptr_t), pointer :: p
         
         alpha = ROT(ONEXT(a))
         beta = ROT(ONEXT(b))
         t1 = ONEXT(a)
         t2 = ONEXT(b)
-        t3 = ONEXT(alpha)
-        t4 = ONEXT(beta)
+        t3 = ONEXT(ROT(ONEXT(a)))
+        t4 = ONEXT(ROT(ONEXT(b)))
         
-        tmp => deref(t1)
-        tmp%next((t1 .AND. 3)+1) = t2
-        tmp => deref(t2)
-        tmp%next((t2 .AND. 3)+1) = t1
+        !call c_f_pointer(c_loc(t1),p)
+        !p = t2
+        !call c_f_pointer(c_loc(t2),p)
+        !p = t1
+        !
+        !
+        !call c_f_pointer(c_loc(t4),p)
+        !p = t3
+        !call c_f_pointer(c_loc(t3),p)
+        !p = t4
         
-        tmp => deref(t3)
-        tmp%next((t3 .AND. 3)+1) = t4
-        tmp => deref(t4)
-        tmp%next((t4 .AND. 3)+1) = t3
+        tmp => deref(a)
+        tmp%next((t1 .AND. 3)+1) = t2       !2
+        tmp%next((t3 .AND. 3)+1) = t4       !3
+        tmp => deref(b)
+        tmp%next((t2 .AND. 3)+1) = t1       !1
+        tmp%next((t4 .AND. 3)+1) = t3       !4
+        
+        
         tmp => NULL()
     end subroutine
     
