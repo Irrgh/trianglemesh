@@ -68,6 +68,7 @@ module quad_edge
         type(edge_struct), pointer :: edge
         edge => deref(e)
         rotrnext_e = edge%next(((e+1) .AND. 3)+1)
+        rotrnext_e = ROT(ONEXT(e))
     end function
     
     function SYMDNEXT (e) result (symdnext_e)
@@ -75,18 +76,23 @@ module quad_edge
         type(edge_struct), pointer :: edge
         edge => deref(e)
         symdnext_e = edge%next(((e+2) .AND. 3)+1)
+        !symdnext_e = SYM(ONEXT(e))
     end function
     
     function TORLNEXT (e) result (torlnext_e)
         integer(c_intptr_t) :: e, torlnext_e
         type(edge_struct), pointer :: edge
+        integer :: idx
+        idx = ((e+3) .AND. 3)
         edge => deref(e)
         torlnext_e = edge%next(((e+3) .AND. 3)+1)
+        !torlnext_e = TOR(ONEXT(e))
     end function
 
+    
     function RNEXT (e) result (rnext_e)
         integer(c_intptr_t) :: e, rnext_e
-        rnext_e = ROT(ROTRNEXT(e))
+        rnext_e = TOR(ROTRNEXT(e))
     end function
     
     function DNEXT (e) result (dnext_e)
@@ -96,19 +102,19 @@ module quad_edge
     
     function LNEXT (e) result (lnext_e)
         integer(c_intptr_t) :: e, lnext_e
-        lnext_e = TOR(TORLNEXT(e))
+        lnext_e = ROT(TORLNEXT(e))
     end function
     
 
     
     function OPREV (e) result (oprev_e)
         integer(c_intptr_t) :: e, oprev_e
-        oprev_e = TOR(ROTRNEXT(e))
+        oprev_e = ROT(ROTRNEXT(e))
     end function
     
     function DPREV (e) result (dprev_e)
         integer(c_intptr_t) :: e, dprev_e
-        dprev_e = ROT(TORLNEXT(e))
+        dprev_e = TOR(TORLNEXT(e))
     end function
     
     function RPREV (e) result (rprev_e)
@@ -173,8 +179,8 @@ module quad_edge
         
         edge%next(1) = e
         edge%next(3) = SYM(e)   ! SYMDNEXT
-        edge%next(2) = ROT(e)   ! ROTRNEXT
-        edge%next(4) = TOR(e)   ! TORLNEXT
+        edge%next(2) = TOR(e)   ! ROTRNEXT
+        edge%next(4) = ROT(e)   ! TORLNEXT
         edge%data = c_null_ptr
         edge%mark = 0
     end function

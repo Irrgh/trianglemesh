@@ -109,36 +109,23 @@ module delaunay
         p3 => deref(c)
         print *, a,b,c
         
-        t1 => tl
-        t2 => bl
-        call end_points(a,c_loc(t1),c_loc(t2))    
-        t1 => bl
-        t2 => tr
-        call end_points(b,c_loc(t1),c_loc(t2))
-        t1 => tr
-        t2 => tl
-        call end_points(c,c_loc(t1), c_loc(t2))
-        call splice(SYM(a),b)
-        call splice(SYM(b),c)
-        call splice(SYM(c),a)
-        
-        !d = make_edge()
-        !call splice(c, d)
-        !t1 => tr
-        !t2 => br
-        !call end_points(d, c_loc(t1), c_loc(t2))
-        !
-        !e = make_edge()
-        !call splice(SYM(d),e)
-        !t1 => br
+        !t1 => tl
         !t2 => bl
-        !call end_points(e, c_loc(t1),c_loc(t2))
+        !call end_points(a,c_loc(t1),c_loc(t2))    
+        !t1 => bl
+        !t2 => tr
+        !call end_points(b,c_loc(t1),c_loc(t2))
+        !t1 => tr
+        !t2 => tl
+        !call end_points(c,c_loc(t1), c_loc(t2))
+        !call splice(SYM(a),b)
         
-        !print *, a, ONEXT(a), DPREV(a)
-        !print *, b, ONEXT(b), DPREV(b)
-        !print *, c, ONEXT(c), DPREV(c)
+        !print *, TORLNEXT(a), TOR(ONEXT(a)), ROTRNEXT(a), ROT(ONEXT(a)), SYMDNEXT(a), SYM(ONEXT(a))
+        !print *, TOR(ONEXT(TOR(a))), TOR(TORLNEXT(a)), DPREV(a)
+        print *, LNEXT(a), TOR(ONEXT(ROT(a))), SYM(a)
+        print *, ONEXT(a), OPREV(a), a
         
-     
+        
         print *, "e:"
         print *, org(a), dest(a), a
         print *, "SYM(e):"
@@ -162,7 +149,54 @@ module delaunay
         print *, "DNEXT(e):"
         print *, org(DNEXT(a)), dest(DNEXT(a)), DNEXT(a)
         
+        
+        
+        call splice(SYM(b),c)
+        call splice(SYM(c),a)
+        
+        !d = make_edge()
+        !call splice(c, d)
+        !t1 => tr
+        !t2 => br
+        !call end_points(d, c_loc(t1), c_loc(t2))
+        !
+        !e = make_edge()
+        !call splice(SYM(d),e)
+        !t1 => br
+        !t2 => bl
+        !call end_points(e, c_loc(t1),c_loc(t2))
+        
+        !print *, a, ONEXT(a), DPREV(a)
+        !print *, b, ONEXT(b), DPREV(b)
+        !print *, c, ONEXT(c), DPREV(c)
+        
+     
+        !print *, "e:"
+        !print *, org(a), dest(a), a
+        !print *, "SYM(e):"
+        !print *, "----------------------------"
+        !print *, org(SYM(a)), dest(SYM(a)), SYM(a)
+        !print *, "LPREV(e):"
+        !print *, org(LPREV(a)), dest(LPREV(a)), LPREV(a)
+        !print *, "ONEXT(e):"
+        !print *, org(ONEXT(a)), dest(ONEXT(a)), ONEXT(a)
+        !print *, "DPREV(e):"
+        !print *, org(DPREV(a)), dest(DPREV(a)), DPREV(a)
+        !print *, "LNEXT(e):"
+        !print *, org(LNEXT(a)), dest(LNEXT(a)), LNEXT(a)
+        !print *, "-----------------------------"
+        !print *, "OPREV(e):"
+        !print *, org(OPREV(a)), dest(OPREV(a)), OPREV(a)
+        !print *, "RNEXT(e):"
+        !print *, org(RNEXT(a)), dest(RNEXT(a)), RNEXT(a)
+        !print *, "RPREV(e):"
+        !print *, org(RPREV(a)), dest(RPREV(a)), RPREV(a)
+        !print *, "DNEXT(e):"
+        !print *, org(DNEXT(a)), dest(DNEXT(a)), DNEXT(a)
+        
         !print *, LNEXT(a) == b, LNEXT(b) == c, LNEXT(c) == a
+        
+        print *, DPREV(a), TOR(ONEXT(TOR(a)))
         
         m%root = a
     end subroutine
@@ -307,6 +341,8 @@ module delaunay
         print *, org(b), dest(b)
         print *, "ONEXT(new edge):"
         print *, org(ONEXT(b)), dest(ONEXT(b))
+        print *, "ONEXT(ONEXT(new edge):"
+        print *, org(ONEXT(ONEXT(b))), dest(ONEXT(ONEXT(b)))
         print *, "OPREV(new edge):"
         print *, org(OPREV(b)), dest(OPREV(b))
         
@@ -319,9 +355,29 @@ module delaunay
             print *, org(b), dest(b)
             print *, "ONEXT(new edge):"
             print *, org(ONEXT(b)), dest(ONEXT(b))
+            print *, "ONEXT(ONEXT(new edge):"
+            print *, org(ONEXT(ONEXT(b))), dest(ONEXT(ONEXT(b)))
             print *, "OPREV(new edge):"
             print *, org(OPREV(b)), dest(OPREV(b))
         end do
+    
+        
+        print *, "-------------------------------------"
+        print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(e)), dest(ONEXT(ONEXT(e)))
+        print *, "- - - - - - - - - - - - - - - - - - -"
+        print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(e)), dest(OPREV(OPREV(e)))
+        e = LNEXT(e)
+        print *, "-------------------------------------"
+        print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(e)), dest(ONEXT(ONEXT(e)))
+        print *, "- - - - - - - - - - - - - - - - - - -"
+        print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(e)), dest(OPREV(OPREV(e)))
+        e = LNEXT(e)
+        print *, "-------------------------------------"
+        print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(e)), dest(ONEXT(ONEXT(e)))
+        print *, "- - - - - - - - - - - - - - - - - - -"
+        print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(e)), dest(OPREV(OPREV(e)))
+        e = LNEXT(e)
+        
         
         do while (.TRUE.)
             t = OPREV(e)
@@ -331,7 +387,12 @@ module delaunay
             else if (ONEXT(e) == s) then
                 return
             else
-                e = LPREV(ONEXT(e))
+                print *, "------------------------------"
+                print *, "e:", org(e), dest(e)
+                print *, "ONEXT(e):", org(ONEXT(e)), dest(ONEXT(e))
+                e = SYM(OPREV(ONEXT(e)))
+                
+                print *, "LPREV(ONEXT(e):", org(e), dest(e)
             end if
         end do
     end subroutine
