@@ -68,7 +68,7 @@ module quad_edge
         type(edge_struct), pointer :: edge
         edge => deref(e)
         rotrnext_e = edge%next(((e+1) .AND. 3)+1)
-        rotrnext_e = ROT(ONEXT(e))
+        !rotrnext_e = ROT(ONEXT(e))
     end function
     
     function SYMDNEXT (e) result (symdnext_e)
@@ -76,7 +76,6 @@ module quad_edge
         type(edge_struct), pointer :: edge
         edge => deref(e)
         symdnext_e = edge%next(((e+2) .AND. 3)+1)
-        !symdnext_e = SYM(ONEXT(e))
     end function
     
     function TORLNEXT (e) result (torlnext_e)
@@ -86,7 +85,6 @@ module quad_edge
         idx = ((e+3) .AND. 3)
         edge => deref(e)
         torlnext_e = edge%next(((e+3) .AND. 3)+1)
-        !torlnext_e = TOR(ONEXT(e))
     end function
 
     
@@ -95,9 +93,19 @@ module quad_edge
         rnext_e = TOR(ROTRNEXT(e))
     end function
     
+    function RNEXT_ (e) result (rnext_e)
+        integer(c_intptr_t) :: e, rnext_e
+        rnext_e = TOR(ONEXT(ROT(e)))
+    end function
+    
     function DNEXT (e) result (dnext_e)
         integer(c_intptr_t) :: e, dnext_e
         dnext_e = SYM(SYMDNEXT(e))
+    end function
+    
+    function DNEXT_ (e) result (dnext_e)
+        integer(c_intptr_t) :: e, dnext_e
+        dnext_e = SYM(ONEXT(SYM(e)))
     end function
     
     function LNEXT (e) result (lnext_e)
@@ -105,27 +113,56 @@ module quad_edge
         lnext_e = ROT(TORLNEXT(e))
     end function
     
-
+    function LNEXT_ (e) result (lnext_e)
+        integer(c_intptr_t) :: e, lnext_e
+        lnext_e = ROT(ONEXT(TOR(e)))
+    end function
+    
+    
     
     function OPREV (e) result (oprev_e)
         integer(c_intptr_t) :: e, oprev_e
         oprev_e = ROT(ROTRNEXT(e))
     end function
     
+    function OPREV_ (e) result (oprev_e)
+        integer(c_intptr_t) :: e, oprev_e
+        oprev_e = ROT(ONEXT(ROT(e)))
+    end function
+    
+    
     function DPREV (e) result (dprev_e)
         integer(c_intptr_t) :: e, dprev_e
         dprev_e = TOR(TORLNEXT(e))
     end function
+    
+    function DPREV_ (e) result (dprev_e)
+        integer(c_intptr_t) :: e, dprev_e
+        dprev_e = TOR(ONEXT(TOR(e)))
+    end function
+    
     
     function RPREV (e) result (rprev_e)
         integer(c_intptr_t) :: e, rprev_e
         rprev_e = SYMDNEXT(e)
     end function
     
+    function RPREV_ (e) result (rprev_e)
+        integer(c_intptr_t) :: e, rprev_e
+        rprev_e = ONEXT(SYM(e))
+    end function
+    
+    
     function LPREV (e) result (lprev_e)
         integer(c_intptr_t) :: e, lprev_e
         lprev_e = SYM(ONEXT(e))
     end function
+    
+    function LPREV_ (e) result (lprev_e)
+        integer(c_intptr_t) :: e, lprev_e
+        lprev_e = SYM(ONEXT(e))
+    end function
+    
     
     !---------------------------------------!
     !             Data Pointers             !
@@ -184,6 +221,28 @@ module quad_edge
         edge%data = c_null_ptr
         edge%mark = 0
     end function
+    
+    function correct_init (e) result (l)
+        logical :: l, c1, c2, c3, c4
+        integer(c_intptr_t) :: e, f
+        c1 = (LNEXT(e) == RNEXT(e)) .and. (RNEXT(e) == SYM(e))
+        c2 = (ONEXT(e) == OPREV(e)) .and. (OPREV(e) == e)
+        f = ROT(e)
+        c3 = (LNEXT(f) == RNEXT(f)) .and. (RNEXt(f) == f)
+        c4 = (ONEXT(f) == OPREV(f)) .and. (OPREV(f) == SYM(f)) 
+        l = (c1 .and. c2) .and. (c3 .and. c4)
+    end function
+    
+    function verify (e) result (l)
+        logical :: l, c1, c2, c3, c4
+        integer(c_intptr_t) :: e
+        c1 = ONEXT(e) == e
+        c2 = ONEXT(SYM(e)) == SYM(e)
+        c3 = ONEXT(ROT(e)) == TOR(e)
+        c4 = ONEXT(TOR(e)) == ROT(e)
+        l = (c1 .and. c2) .and. (c3 .and. c4)
+    end function
+    
     
     !---------------------------!
     !       Delete an edge      !

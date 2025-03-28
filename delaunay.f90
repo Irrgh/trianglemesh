@@ -102,57 +102,34 @@ module delaunay
         
         a = make_edge()
         b = make_edge()
-        c = make_edge()
+        !c = make_edge()
         
         p1 => deref(a)
         p2 => deref(b)
         p3 => deref(c)
-        print *, a,b,c
-        
-        !t1 => tl
-        !t2 => bl
-        !call end_points(a,c_loc(t1),c_loc(t2))    
-        !t1 => bl
-        !t2 => tr
-        !call end_points(b,c_loc(t1),c_loc(t2))
-        !t1 => tr
-        !t2 => tl
-        !call end_points(c,c_loc(t1), c_loc(t2))
-        !call splice(SYM(a),b)
-        
-        !print *, TORLNEXT(a), TOR(ONEXT(a)), ROTRNEXT(a), ROT(ONEXT(a)), SYMDNEXT(a), SYM(ONEXT(a))
-        !print *, TOR(ONEXT(TOR(a))), TOR(TORLNEXT(a)), DPREV(a)
-        print *, LNEXT(a), TOR(ONEXT(ROT(a))), SYM(a)
-        print *, ONEXT(a), OPREV(a), a
+        print *, "a,b,c:", a,b,c
+        !print *, "correct_init([a,b,c]):", correct_init(a), correct_init(b), correct_init(c)
+        !print *, "I wonder if this works aswell:", verify(a), verify(b), verify(c)
+        print *, ccw(tl,bl,tr)
         
         
-        print *, "e:"
-        print *, org(a), dest(a), a
-        print *, "SYM(e):"
-        print *, "----------------------------"
-        print *, org(SYM(a)), dest(SYM(a)), SYM(a)
-        print *, "LPREV(e):"
-        print *, org(LPREV(a)), dest(LPREV(a)), LPREV(a)
-        print *, "ONEXT(e):"
-        print *, org(ONEXT(a)), dest(ONEXT(a)), ONEXT(a)
-        print *, "DPREV(e):"
-        print *, org(DPREV(a)), dest(DPREV(a)), DPREV(a)
-        print *, "LNEXT(e):"
-        print *, org(LNEXT(a)), dest(LNEXT(a)), LNEXT(a)
-        print *, "-----------------------------"
-        print *, "OPREV(e):"
-        print *, org(OPREV(a)), dest(OPREV(a)), OPREV(a)
-        print *, "RNEXT(e):"
-        print *, org(RNEXT(a)), dest(RNEXT(a)), RNEXT(a)
-        print *, "RPREV(e):"
-        print *, org(RPREV(a)), dest(RPREV(a)), RPREV(a)
-        print *, "DNEXT(e):"
-        print *, org(DNEXT(a)), dest(DNEXT(a)), DNEXT(a)
+        t1 => tl
+        t2 => bl
+        call end_points(a,c_loc(t1),c_loc(t2))    
+        t1 => bl
+        t2 => tr
+        call end_points(b,c_loc(t1),c_loc(t2))
         
         
         
-        call splice(SYM(b),c)
-        call splice(SYM(c),a)
+        call splice(SYM(a),b)
+        c = connect(b,a)
+            
+        t1 => tr
+        t2 => tl
+        call end_points(c,c_loc(t1), c_loc(t2))
+        
+        
         
         !d = make_edge()
         !call splice(c, d)
@@ -166,37 +143,9 @@ module delaunay
         !t2 => bl
         !call end_points(e, c_loc(t1),c_loc(t2))
         
-        !print *, a, ONEXT(a), DPREV(a)
-        !print *, b, ONEXT(b), DPREV(b)
-        !print *, c, ONEXT(c), DPREV(c)
+        call debug(a)
         
-     
-        !print *, "e:"
-        !print *, org(a), dest(a), a
-        !print *, "SYM(e):"
-        !print *, "----------------------------"
-        !print *, org(SYM(a)), dest(SYM(a)), SYM(a)
-        !print *, "LPREV(e):"
-        !print *, org(LPREV(a)), dest(LPREV(a)), LPREV(a)
-        !print *, "ONEXT(e):"
-        !print *, org(ONEXT(a)), dest(ONEXT(a)), ONEXT(a)
-        !print *, "DPREV(e):"
-        !print *, org(DPREV(a)), dest(DPREV(a)), DPREV(a)
-        !print *, "LNEXT(e):"
-        !print *, org(LNEXT(a)), dest(LNEXT(a)), LNEXT(a)
-        !print *, "-----------------------------"
-        !print *, "OPREV(e):"
-        !print *, org(OPREV(a)), dest(OPREV(a)), OPREV(a)
-        !print *, "RNEXT(e):"
-        !print *, org(RNEXT(a)), dest(RNEXT(a)), RNEXT(a)
-        !print *, "RPREV(e):"
-        !print *, org(RPREV(a)), dest(RPREV(a)), RPREV(a)
-        !print *, "DNEXT(e):"
-        !print *, org(DNEXT(a)), dest(DNEXT(a)), DNEXT(a)
         
-        !print *, LNEXT(a) == b, LNEXT(b) == c, LNEXT(c) == a
-        
-        print *, DPREV(a), TOR(ONEXT(TOR(a)))
         
         m%root = a
     end subroutine
@@ -221,7 +170,32 @@ module delaunay
         call c_f_pointer(DDATA(e),vec)
     end function
     
-    
+    subroutine debug (e)
+        integer(c_intptr_t), intent(in) :: e
+        print *, "----------------------------"
+        print *, "e:"
+        print *, org(e), dest(e), e
+        print *, "SYM(e):"
+        print *, org(SYM(e)), dest(SYM(e)), SYM(e)
+        print *, "----------------------------"
+        print *, "LPREV(e):"
+        print *, org(LPREV(e)), dest(LPREV(e)), LPREV(e)
+        print *, "ONEXT(e):"
+        print *, org(ONEXT(e)), dest(ONEXT(e)), ONEXT(e)
+        print *, "DPREV(e):"
+        print *, org(DPREV(e)), dest(DPREV(e)), DPREV(e)
+        print *, "LNEXT(e):"
+        print *, org(LNEXT(e)), dest(LNEXT(e)), LNEXT(e)
+        print *, "-----------------------------"
+        print *, "OPREV(e):"
+        print *, org(OPREV(e)), dest(OPREV(e)), OPREV(e)
+        print *, "RNEXT(e):"
+        print *, org(RNEXT(e)), dest(RNEXT(e)), RNEXT(e)
+        print *, "RPREV(e):"
+        print *, org(RPREV(e)), dest(RPREV(e)), RPREV(e)
+        print *, "DNEXT(e):"
+        print *, org(DNEXT(e)), dest(DNEXT(e)), DNEXT(e)
+    end subroutine
     
     ! Twice the area of the triangle, positive if ccw
     function tri_area(a,b,c) result (area)
@@ -251,6 +225,7 @@ module delaunay
         type(vec3f) :: p
         integer(c_intptr_t) :: e
         logical :: l
+        call debug(e)
         l = ccw(p,dest(e), org(e))
     end function
     
@@ -328,37 +303,14 @@ module delaunay
         tmp => p
         
         call end_points(b, ODATA(e), c_loc(tmp))
-        !call splice(b,e)
-        s = e
-        
-        !print *, e, ONEXT(e), ONEXT(ONEXT(e)), ONEXT(ONEXT(ONEXT(e))) 
-        print *, "s:", org(s), dest(s), s
-        
-        b = connect(e,SYM(b))
-        e = OPREV(b)
-        print *, "-------------------------------"
-        print *, "new edge:"
-        print *, org(b), dest(b)
-        print *, "ONEXT(new edge):"
-        print *, org(ONEXT(b)), dest(ONEXT(b))
-        print *, "ONEXT(ONEXT(new edge):"
-        print *, org(ONEXT(ONEXT(b))), dest(ONEXT(ONEXT(b)))
-        print *, "OPREV(new edge):"
-        print *, org(OPREV(b)), dest(OPREV(b))
-        
-        
-        do while (e /= s)
+        call splice(b,e)
+        s = b
+             
+        do while (LNEXT(e) /= s)
             b = connect(e,SYM(b))
             e = OPREV(b)
-            print *, "-------------------------------"
-            print *, "new edge:"
-            print *, org(b), dest(b)
-            print *, "ONEXT(new edge):"
-            print *, org(ONEXT(b)), dest(ONEXT(b))
-            print *, "ONEXT(ONEXT(new edge):"
-            print *, org(ONEXT(ONEXT(b))), dest(ONEXT(ONEXT(b)))
-            print *, "OPREV(new edge):"
-            print *, org(OPREV(b)), dest(OPREV(b))
+            
+            call debug(e)
         end do
     
         
