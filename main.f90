@@ -41,9 +41,7 @@ program main
     
     call quad_enum(del%root, v_proc, c_null_ptr)
     
-    
-    
-    
+    print *, del%edges(1:del%vc+1)
     
     
     call generate_faces(face_data,nsize)

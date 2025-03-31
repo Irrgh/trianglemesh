@@ -13,8 +13,7 @@ module delaunay
     end type
     
     type mesh
-        type(vec3f), allocatable :: vert(:) ! position of vertices in 3d space
-        type(vec3i), allocatable :: tris(:) ! indices of the 3 edges constructing a triangle
+        integer(c_intptr_t), allocatable :: edges(:)
         integer(c_intptr_t) :: root         ! edge to start navigating at
         integer(4) :: vc, tc
     end type
@@ -112,14 +111,8 @@ module delaunay
         t2 => tr
         call end_points(b,c_loc(t1),c_loc(t2))
         
-        p1 => deref(a)
-        p2 => deref(b)
-        
         call splice(SYM(a),b)
-        
-        c = connect(b,a)
-        
-        p3 => deref(c)
+        c = connect(b,a) 
         
         !d = make_edge()
         !call splice(c, d)
@@ -137,8 +130,14 @@ module delaunay
         !call debug(b)
         !call debug(c)
         
+        allocate(m%edges(1000))
+        
+        m%edges(1) = a
+        m%edges(2) = b
+        m%edges(3) = c
         
         
+        m%vc = 3
         m%root = a
     end subroutine
         
@@ -297,8 +296,9 @@ module delaunay
         call splice(b,e)
         
         s = b
+        del%edges(del%vc+1) = b
+        del%vc = del%vc + 1
         
-        call verify_splice(SYM(b),e)
         
         call debug(b)
         print *, "OPREV(e):"
@@ -307,7 +307,10 @@ module delaunay
         do 
             
             b = connect(e,SYM(b))
-            call debug(b)
+            del%edges(del%vc+1) = b
+            del%vc = del%vc + 1
+            !call debug(b)
+            print *, "edge"
             e = OPREV(b)
             
             
@@ -316,7 +319,7 @@ module delaunay
                 exit
             end if
         end do
-    
+        
         
         print *, "-------------------------------------"
         print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(ONEXT(e))), dest(ONEXT(ONEXT(e)))
