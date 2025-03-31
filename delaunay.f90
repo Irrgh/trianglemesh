@@ -102,21 +102,8 @@ module delaunay
         
         a = make_edge()
         b = make_edge()
-        !c = make_edge()
         
-        p1 => deref(a)
-        p2 => deref(b)
-        p3 => deref(c)
         print *, "a,b,c:", a,b,c
-        !print *, "correct_init([a,b,c]):", correct_init(a), correct_init(b), correct_init(c)
-        !print *, "I wonder if this works aswell:", verify(a), verify(b), verify(c)
-        print *, ccw(tl,bl,tr)
-        
-        
-        
-        
-        call splice(SYM(a),b)
-        c = connect(b,a)
         
         t1 => tl
         t2 => bl
@@ -124,11 +111,15 @@ module delaunay
         t1 => bl
         t2 => tr
         call end_points(b,c_loc(t1),c_loc(t2))
-        t1 => tr
-        t2 => tl
-        call end_points(c,c_loc(t1), c_loc(t2))
         
+        p1 => deref(a)
+        p2 => deref(b)
         
+        call splice(SYM(a),b)
+        
+        c = connect(b,a)
+        
+        p3 => deref(c)
         
         !d = make_edge()
         !call splice(c, d)
@@ -142,9 +133,9 @@ module delaunay
         !t2 => bl
         !call end_points(e, c_loc(t1),c_loc(t2))
         
-        call debug(a)
-        call debug(b)
-        call debug(c)
+        !call debug(a)
+        !call debug(b)
+        !call debug(c)
         
         
         
@@ -189,9 +180,9 @@ module delaunay
         print *, org(LNEXT(e)), dest(LNEXT(e)), LNEXT(e)
         print *, "-----------------------------"
         print *, "OPREV(e):"
-        print *, org(OPREV_(e)), dest(OPREV_(e)), OPREV_(e)
+        print *, org(OPREV(e)), dest(OPREV(e)), OPREV(e)
         print *, "RNEXT(e):"
-        print *, org(RNEXT_(e)), dest(RNEXT_(e)), RNEXT_(e)
+        print *, org(RNEXT(e)), dest(RNEXT(e)), RNEXT(e)
         print *, "RPREV(e):"
         print *, org(RPREV(e)), dest(RPREV(e)), RPREV(e)
         print *, "DNEXT(e):"
@@ -226,7 +217,6 @@ module delaunay
         type(vec3f) :: p
         integer(c_intptr_t) :: e
         logical :: l
-        call debug(e)
         l = ccw(p,dest(e), org(e))
     end function
     
@@ -307,29 +297,31 @@ module delaunay
         call splice(b,e)
         s = b
              
-        do while (LNEXT(e) /= s)
-            b = connect(e,SYM(b))
-            e = OPREV(b)
-            
-            call debug(e)
-        end do
+        call debug(b)
+        
+        !do while (LNEXT(e) /= s)
+        !    b = connect(e,SYM(b))
+        !    e = OPREV(b)
+        !    
+        !    !call debug(e)
+        !end do
     
         
         print *, "-------------------------------------"
-        print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(e)), dest(ONEXT(ONEXT(e)))
+        print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(ONEXT(e))), dest(ONEXT(ONEXT(e)))
         print *, "- - - - - - - - - - - - - - - - - - -"
-        print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(e)), dest(OPREV(OPREV(e)))
-        e = LNEXT(e)
-        print *, "-------------------------------------"
-        print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(e)), dest(ONEXT(ONEXT(e)))
-        print *, "- - - - - - - - - - - - - - - - - - -"
-        print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(e)), dest(OPREV(OPREV(e)))
-        e = LNEXT(e)
-        print *, "-------------------------------------"
-        print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(e)), dest(ONEXT(ONEXT(e)))
-        print *, "- - - - - - - - - - - - - - - - - - -"
-        print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(e)), dest(OPREV(OPREV(e)))
-        e = LNEXT(e)
+        print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(OPREV(e))), dest(OPREV(OPREV(e)))
+        e = RPREV(e)
+        !print *, "-------------------------------------"
+        !print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(ONEXT(e))), dest(ONEXT(ONEXT(e)))
+        !print *, "- - - - - - - - - - - - - - - - - - -"
+        !print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(OPREV(e))), dest(OPREV(OPREV(e)))
+        !e = RPREV(e)
+        !print *, "-------------------------------------"
+        !print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(ONEXT(e))), dest(ONEXT(ONEXT(e)))
+        !print *, "- - - - - - - - - - - - - - - - - - -"
+        !print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(OPREV(e))), dest(OPREV(OPREV(e)))
+        !e = RPREV(e)
         
         
         do while (.TRUE.)

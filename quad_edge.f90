@@ -284,27 +284,40 @@ module quad_edge
         t3 = ONEXT(ROT(ONEXT(a)))
         t4 = ONEXT(ROT(ONEXT(b)))
         
-        !call c_f_pointer(c_loc(t1),p)
-        !p = t2
-        !call c_f_pointer(c_loc(t2),p)
-        !p = t1
-        !
-        !
-        !call c_f_pointer(c_loc(t4),p)
-        !p = t3
-        !call c_f_pointer(c_loc(t3),p)
-        !p = t4
+        !print *, t1, t2, alpha, beta
         
         tmp => deref(a)
-        tmp%next((t1 .AND. 3)+1) = t2       !2
-        tmp%next((t3 .AND. 3)+1) = t4       !3
-        tmp => deref(b)
-        tmp%next((t2 .AND. 3)+1) = t1       !1
-        tmp%next((t4 .AND. 3)+1) = t3       !4
+        tmp%next((a .AND. 3)+1) = t2
         
+        tmp => deref(a)
+        tmp%next((alpha .AND. 3)+1) = t4
+        
+        tmp => deref(b)
+        tmp%next((b .AND. 3)+1) = t1
+        
+        tmp => deref(b)
+        tmp%next((beta .AND. 3)+1) = t3
         
         tmp => NULL()
     end subroutine
+    
+    subroutine verify_splice(a,b)
+        integer(c_intptr_t), intent(in) :: a,b
+        logical :: l, c1, c2, c3, c4, c5 ,c6, c7, c8
+        c1 = DPREV(a) == SYM(b)
+        c2 = LNEXT(a) == b
+        c3 = ONEXT(a) == a
+        c4 = LPREV(a) == SYM(a)
+        c5 = OPREV(a) == a
+        c6 = RNEXT(a) == SYM(a)
+        c7 = RPREV(a) == b
+        c8 = DNEXT(a) == SYM(b)
+        
+        print *, c1, c2, c3, c4, c5, c6, c7, c8
+    end subroutine
+    
+    
+    
     
     !-------------------------------------------------------------------------------!
     !   Enumerates undirected primal edges reachable from $a$.                      !
