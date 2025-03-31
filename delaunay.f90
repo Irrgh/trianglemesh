@@ -66,9 +66,9 @@ module delaunay
     function connect (a,b) result (e)
         integer(c_intptr_t) :: a,b,e
         e = make_edge()
-        call end_points(e,DDATA(a), ODATA(b))
-        call splice(e,LNEXT_(a))
+        call splice(e,LNEXT(a))
         call splice(SYM(e), b)
+        call end_points(e,DDATA(a), ODATA(b))
     end function
     
     subroutine swap (e)
@@ -145,7 +145,7 @@ module delaunay
     subroutine v_proc (edge,closure)
         integer(c_intptr_t), intent(in) :: edge
         type(c_ptr), intent(in) :: closure
-        print *, "Traversed edge at: ", edge, ", org: ", org(edge), ", dest: ", dest(edge)
+        print *, "Traversed edge at: ", edge, ", org: ", org(edge)%n, ", dest: ", dest(edge)%n
     end subroutine
     
     function org(e) result (vec)
@@ -295,16 +295,27 @@ module delaunay
         
         call end_points(b, ODATA(e), c_loc(tmp))
         call splice(b,e)
-        s = b
-             
-        call debug(b)
         
-        !do while (LNEXT(e) /= s)
-        !    b = connect(e,SYM(b))
-        !    e = OPREV(b)
-        !    
-        !    !call debug(e)
-        !end do
+        s = b
+        
+        call verify_splice(SYM(b),e)
+        
+        call debug(b)
+        print *, "OPREV(e):"
+        print *, org(OPREV(b)), dest(OPREV(b))
+        print *, org(OPREV(OPREV(b))), dest(OPREV(OPREV(b)))
+        do 
+            
+            b = connect(e,SYM(b))
+            call debug(b)
+            e = OPREV(b)
+            
+            
+            if (LNEXT(e) == s) then
+                print *, "test"
+                exit
+            end if
+        end do
     
         
         print *, "-------------------------------------"
@@ -312,16 +323,16 @@ module delaunay
         print *, "- - - - - - - - - - - - - - - - - - -"
         print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(OPREV(e))), dest(OPREV(OPREV(e)))
         e = RPREV(e)
-        !print *, "-------------------------------------"
-        !print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(ONEXT(e))), dest(ONEXT(ONEXT(e)))
-        !print *, "- - - - - - - - - - - - - - - - - - -"
-        !print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(OPREV(e))), dest(OPREV(OPREV(e)))
-        !e = RPREV(e)
-        !print *, "-------------------------------------"
-        !print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(ONEXT(e))), dest(ONEXT(ONEXT(e)))
-        !print *, "- - - - - - - - - - - - - - - - - - -"
-        !print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(OPREV(e))), dest(OPREV(OPREV(e)))
-        !e = RPREV(e)
+        print *, "-------------------------------------"
+        print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(ONEXT(e))), dest(ONEXT(ONEXT(e)))
+        print *, "- - - - - - - - - - - - - - - - - - -"
+        print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(OPREV(e))), dest(OPREV(OPREV(e)))
+        e = RPREV(e)
+        print *, "-------------------------------------"
+        print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(ONEXT(e))), dest(ONEXT(ONEXT(e)))
+        print *, "- - - - - - - - - - - - - - - - - - -"
+        print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(OPREV(e))), dest(OPREV(OPREV(e)))
+        e = RPREV(e)
         
         
         do while (.TRUE.)

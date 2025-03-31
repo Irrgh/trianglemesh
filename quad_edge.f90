@@ -275,7 +275,6 @@ module quad_edge
         integer(c_intptr_t), intent(in) :: a, b    
         integer(c_intptr_t), target :: alpha, beta, t1,t2,t3,t4
         type(edge_struct), pointer :: tmp
-        integer(c_intptr_t), pointer :: p
         
         alpha = ROT(ONEXT(a))
         beta = ROT(ONEXT(b))
