@@ -35,13 +35,11 @@ program main
     call init(del, vec3f(0,0,0,"BL"), vec3f(0,1,0,"TL"), vec3f(1,1,0,"TR"), vec3f(1,0,0,"BR"))
     
     
-    call quad_enum(del%root, v_proc, c_null_ptr)
-    
     call insert_site(del,vec3f(0.4,0.6,1,"AH"))
     
-    call quad_enum(del%root, v_proc, c_null_ptr)
+    call quad_enum(del%root, print_edge, c_null_ptr)
     
-    print *, del%edges(1:del%vc+1)
+    print *, get_edges(del)
     
     
     call generate_faces(face_data,nsize)

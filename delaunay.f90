@@ -13,12 +13,48 @@ module delaunay
     end type
     
     type mesh
+        type(vec3f), allocatable :: vertices(:)
         integer(c_intptr_t), allocatable :: edges(:)
         integer(c_intptr_t) :: root         ! edge to start navigating at
-        integer(4) :: vc, tc
+        integer(4) :: vc, ec
     end type
     
     contains
+    
+    subroutine add_edge (del,edge)
+        type(mesh), intent(inout) :: del
+        integer(c_intptr_t), intent(in) :: edge
+        del%ec = del%ec + 1
+        del%edges(del%ec) = edge
+    end subroutine
+    
+    subroutine add_vertex (del,vertex)
+        type(mesh), intent(inout) :: del
+        type(vec3f), intent(in) :: vertex
+        del%vc = del%vc + 1
+        del%vertices(del%vc) = vertex
+    end subroutine
+    
+    function get_edges(del) result (edges)
+        type(mesh) :: del
+        integer(c_intptr_t), allocatable :: edges(:)
+        allocate(edges(del%ec))
+        edges = del%edges(1:del%ec)
+    end function
+    
+    function get_vertices(del) result (vertices)
+        type(mesh) :: del
+        type(vec3f), allocatable :: vertices(:)
+        allocate(vertices(del%vc))
+        vertices = del%vertices(1:del%vc)
+    end function
+        
+    
+    
+    
+    !-----------------------------------!
+    !          Bad vector math          !
+    !-----------------------------------!
     
     function add_vec3f(a,b) result (c)
         type(vec3f) :: a,b,c
@@ -45,6 +81,11 @@ module delaunay
         logical :: l
         l = (a%x == b%x) .AND. (a%y == b%y)
     end function
+    
+    !---------------------------------------!
+    !    Auxilliary quad edge operations    !
+    !---------------------------------------!
+    
     
     subroutine end_points(e,org,dest)
         integer(c_intptr_t), intent(in) :: e
@@ -127,22 +168,23 @@ module delaunay
         !t2 => bl
         !call end_points(e, c_loc(t1),c_loc(t2))
         
-        !call debug(a)
-        !call debug(b)
-        !call debug(c)
-        
         allocate(m%edges(1000))
+        allocate(m%vertices(1000))
         
-        m%edges = 0
+        
+        m%vc = 3
+        m%ec = 3
+        m%vertices(1) = tl
+        m%vertices(2) = bl
+        m%vertices(3) = tr
         m%edges(1) = a
         m%edges(2) = b
         m%edges(3) = c
         
-        m%vc = 3
         m%root = a
     end subroutine
             
-    subroutine v_proc (edge,closure)
+    subroutine print_edge (edge,closure)
         integer(c_intptr_t), intent(in) :: edge
         type(c_ptr), intent(in) :: closure
         print *, "Traversed edge at: ", edge, ", org: ", org(edge)%n, ", dest: ", dest(edge)%n
@@ -299,15 +341,12 @@ module delaunay
         call splice(b,e)
         
         s = b
-        del%edges(del%vc+1) = b
-        del%vc = del%vc + 1
+        call add_edge(del,b)
         
         do while (LNEXT(e) /= s)
             b = connect(e,SYM(b))
-            del%edges(del%vc+1) = b
-            del%vc = del%vc + 1
-            
             e = OPREV(b)
+            call add_edge(del,b)
         end do
         
         do while (.TRUE.)
@@ -321,6 +360,7 @@ module delaunay
                 e = LPREV(ONEXT(e))
             end if
         end do
+        call add_vertex(del,p)
     end subroutine
     
     
