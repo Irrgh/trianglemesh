@@ -2,6 +2,7 @@ program main
     use tm_data
     use convolution
     use delaunay
+    use mesh_helper
     use, intrinsic :: iso_c_binding
     implicit none
     character(len = *), parameter :: in_file = "C:\Temp\Mediafunction_hpt_400_400.bin"
@@ -36,10 +37,9 @@ program main
     
     
     call insert_site(del,vec3f(0.4,0.6,1,"AH"))
+    call insert_site(del,vec3f(0.5,0.7,2,"KO"))
     
-    call quad_enum(del%root, print_edge, c_null_ptr)
-    
-    print *, get_edges(del)
+    call quad_enum(del%root, adjacency_list, c_null_ptr)
     
     
     call generate_faces(face_data,nsize)

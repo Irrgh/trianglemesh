@@ -143,8 +143,6 @@ module delaunay
         a = make_edge()
         b = make_edge()
         
-        print *, "a,b,c:", a,b,c
-        
         t1 => tl
         t2 => bl
         call end_points(a,c_loc(t1),c_loc(t2))    
@@ -326,12 +324,13 @@ module delaunay
         type(vec3f), pointer :: tmp
         
         e = locate(del,p)
+        call add_vertex(del,p)
         
         if (equals_vec3f(p,org(e)) .OR. equals_vec3f(p,dest(e))) then
             return
         else if (on_edge(p,e)) then
             e = OPREV(e)
-            call destroy_edge(e)
+            call destroy_edge(ONEXT(e))
         end if
         
         b = make_edge()
@@ -360,7 +359,6 @@ module delaunay
                 e = LPREV(ONEXT(e))
             end if
         end do
-        call add_vertex(del,p)
     end subroutine
     
     

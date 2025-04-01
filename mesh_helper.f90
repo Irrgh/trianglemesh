@@ -1,5 +1,6 @@
 module mesh_helper
     use delaunay
+    use quad_edge
     implicit none
         
     contains
@@ -39,5 +40,19 @@ module mesh_helper
         type(vec3i), allocatable :: faces(:)
         allocate(faces(100))
     end function
+    
+    subroutine adjacency_list (e,c)
+        integer(c_intptr_t), intent(in) :: e
+        type(c_ptr), intent(in) :: c
+        integer(c_intptr_t) :: s
+        type(edge_struct), pointer :: p
+        print *, org(e)%n," => ", dest(e)%n, ":"
+   
+        s = ONEXT(e)
+        do while (e /= s)
+            print *, "--> ", org(s)%n, " => ", dest(s)%n
+            s = ONEXT(s)
+        end do
+    end subroutine 
     
 end module
