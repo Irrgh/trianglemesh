@@ -288,13 +288,13 @@ module quad_edge
         tmp => deref(a)
         tmp%next((a .AND. 3)+1) = t2
         
-        tmp => deref(a)
+        tmp => deref(alpha)
         tmp%next((alpha .AND. 3)+1) = t4
         
         tmp => deref(b)
         tmp%next((b .AND. 3)+1) = t1
         
-        tmp => deref(b)
+        tmp => deref(beta)
         tmp%next((beta .AND. 3)+1) = t3
         
         tmp => NULL()
@@ -315,8 +315,27 @@ module quad_edge
         print *, c1, c2, c3, c4, c5, c6, c7, c8
     end subroutine
     
-    
-    
+    subroutine splice_check (a,b) 
+        integer(c_intptr_t), intent(in) :: a,b
+        integer(c_intptr_t) :: an(4), bn(4)
+        type(edge_struct), pointer :: tmp
+        
+        tmp => deref(a)
+        an = tmp%next
+        tmp => deref(b)
+        bn = tmp%next
+        
+        call splice(a,b)
+        call splice(a,b)
+        
+        tmp => deref(a)
+        
+        print *, an(1) == tmp%next(1), an(2) == tmp%next(2), an(3) == tmp%next(3), an(4) == tmp%next(4)
+        tmp%next = an
+        tmp => deref(b)
+        print *, bn(1) == tmp%next(1), bn(2) == tmp%next(2), bn(3) == tmp%next(3), bn(4) == tmp%next(4)
+        tmp%next = bn
+    end subroutine       
     
     !-------------------------------------------------------------------------------!
     !   Enumerates undirected primal edges reachable from $a$.                      !
