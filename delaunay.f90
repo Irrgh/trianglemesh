@@ -112,6 +112,7 @@ module delaunay
         call end_points(b,c_loc(t1),c_loc(t2))
         
         call splice(SYM(a),b)
+        
         c = connect(b,a) 
         
         !d = make_edge()
@@ -132,15 +133,15 @@ module delaunay
         
         allocate(m%edges(1000))
         
+        m%edges = 0
         m%edges(1) = a
         m%edges(2) = b
         m%edges(3) = c
         
-        
         m%vc = 3
         m%root = a
     end subroutine
-        
+            
     subroutine v_proc (edge,closure)
         integer(c_intptr_t), intent(in) :: edge
         type(c_ptr), intent(in) :: closure
@@ -252,6 +253,7 @@ module delaunay
         l = abs(tri_area(p,o,d)) < EPS * 2 * t3
     end function
     
+    ! Finds one edge of the triangle of the delaunay triangulation that contains the point.
     function locate(del, p) result (e)
         type(mesh) :: del
         type(vec3f) :: p
@@ -274,6 +276,7 @@ module delaunay
     end function
     
     
+    ! Inserts a new point existing triangulation
     subroutine insert_site (del,p)
         type(mesh), intent(inout) :: del
         type(vec3f), intent(in), target :: p
@@ -299,44 +302,13 @@ module delaunay
         del%edges(del%vc+1) = b
         del%vc = del%vc + 1
         
-        
-        call debug(b)
-        print *, "OPREV(e):"
-        print *, org(OPREV(b)), dest(OPREV(b))
-        print *, org(OPREV(OPREV(b))), dest(OPREV(OPREV(b)))
-        do 
-            
+        do while (LNEXT(e) /= s)
             b = connect(e,SYM(b))
             del%edges(del%vc+1) = b
             del%vc = del%vc + 1
-            !call debug(b)
-            print *, "edge"
+            
             e = OPREV(b)
-            
-            
-            if (LNEXT(e) == s) then
-                print *, "test"
-                exit
-            end if
         end do
-        
-        
-        print *, "-------------------------------------"
-        print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(ONEXT(e))), dest(ONEXT(ONEXT(e)))
-        print *, "- - - - - - - - - - - - - - - - - - -"
-        print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(OPREV(e))), dest(OPREV(OPREV(e)))
-        e = RPREV(e)
-        print *, "-------------------------------------"
-        print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(ONEXT(e))), dest(ONEXT(ONEXT(e)))
-        print *, "- - - - - - - - - - - - - - - - - - -"
-        print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(OPREV(e))), dest(OPREV(OPREV(e)))
-        e = RPREV(e)
-        print *, "-------------------------------------"
-        print *, org(e), dest(e), org(ONEXT(e)), dest(ONEXT(e)), org(ONEXT(ONEXT(e))), dest(ONEXT(ONEXT(e)))
-        print *, "- - - - - - - - - - - - - - - - - - -"
-        print *,  org(e), dest(e), org(OPREV(e)), dest(OPREV(e)), org(OPREV(OPREV(e))), dest(OPREV(OPREV(e)))
-        e = RPREV(e)
-        
         
         do while (.TRUE.)
             t = OPREV(e)
@@ -346,12 +318,7 @@ module delaunay
             else if (ONEXT(e) == s) then
                 return
             else
-                print *, "------------------------------"
-                print *, "e:", org(e), dest(e)
-                print *, "ONEXT(e):", org(ONEXT(e)), dest(ONEXT(e))
-                e = SYM(OPREV(ONEXT(e)))
-                
-                print *, "LPREV(ONEXT(e):", org(e), dest(e)
+                e = LPREV(ONEXT(e))
             end if
         end do
     end subroutine
