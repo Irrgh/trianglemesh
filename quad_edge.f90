@@ -16,6 +16,7 @@ module quad_edge
     type edge_struct
         integer(c_intptr_t) :: next(4)
         type(c_ptr) :: data(4)
+        type(c_ptr) :: tmp      ! points to any extra info that might be needed, because i dont want write a hashmap right now
         integer(c_int64_t) :: mark
     end type
     
@@ -218,6 +219,7 @@ module quad_edge
         edge%next(2) = TOR(e)   ! ROTRNEXT
         edge%next(4) = ROT(e)   ! TORLNEXT
         edge%data = c_null_ptr
+        edge%tmp = c_null_ptr
         edge%mark = 0
     end function
     
@@ -264,6 +266,7 @@ module quad_edge
         edge => deref(e)
         edge%next = 0
         edge%data = c_null_ptr
+        egde%tmp = c_null_ptr
         deallocate(edge)
     end subroutine
     
@@ -282,8 +285,6 @@ module quad_edge
         t3 = ONEXT(ROT(ONEXT(a)))
         t4 = ONEXT(ROT(ONEXT(b)))
         
-        !print *, t1, t2, alpha, beta
-        
         tmp => deref(a)
         tmp%next((a .AND. 3)+1) = t2
         
@@ -297,21 +298,6 @@ module quad_edge
         tmp%next((beta .AND. 3)+1) = t3
         
         tmp => NULL()
-    end subroutine
-    
-    subroutine verify_splice(a,b)
-        integer(c_intptr_t), intent(in) :: a,b
-        logical :: l, c1, c2, c3, c4, c5 ,c6, c7, c8
-        c1 = DPREV(a) == SYM(b)
-        c2 = LNEXT(a) == b
-        c3 = ONEXT(a) == a
-        c4 = LPREV(a) == SYM(a)
-        c5 = OPREV(a) == a
-        c6 = RNEXT(a) == SYM(a)
-        c7 = RPREV(a) == b
-        c8 = DNEXT(a) == SYM(b)
-        
-        print *, c1, c2, c3, c4, c5, c6, c7, c8
     end subroutine
     
     subroutine splice_check (a,b) 

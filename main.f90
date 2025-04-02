@@ -15,7 +15,13 @@ program main
     
     allocate(datad1x(nsize,nsize), datad1y(nsize,nsize), datad1(nsize,nsize))
     
+    
+    
+    
+    
     call readBin(in_file, data,9)
+    
+    print *, loc(data), loc(data(1)), loc(data(2))
     
     do i = 1, nsize
         do j = 1, nsize
@@ -35,22 +41,15 @@ program main
     
     call init(del, 1000.0)
     
+    call insert_site(del,vec3f(0.4,0.6,1,"01"))
+    call insert_site(del,vec3f(0.5,0.7,2,"02"))
+    call insert_site(del,vec3f(23.5,-34.4,8,"03"))
+    call insert_site(del,vec3f(-342.5,543.4,645,"04"))
     
-    call quad_enum(del%root, adjacency_list, c_null_ptr)
-    print *, "--------------------------------------------------"
+    call quad_enum(del%root,adjacency_list,c_null_ptr)
     
-    call insert_site(del,vec3f(0.4,0.6,1,"AH"))
-    call quad_enum(del%root, adjacency_list, c_null_ptr)
-    print *, "--------------------------------------------------"
-    
-    call insert_site(del,vec3f(0.5,0.7,2,"KO"))
-    call quad_enum(del%root, adjacency_list, c_null_ptr)
-    print *, "--------------------------------------------------"
-    
-    call insert_site(del,vec3f(23.5,-34.4,8,"IO"))
-    call quad_enum(del%root, adjacency_list, c_null_ptr)
-    print *, "--------------------------------------------------"
-    
+    print *, list_edges(del)
+    print *, del%vc, del%ec, euler_faces(del%vc, del%ec)
     
     call generate_faces(face_data,nsize)
     

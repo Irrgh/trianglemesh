@@ -14,7 +14,6 @@ module delaunay
     
     type mesh
         type(vec3f), allocatable :: vertices(:)
-        integer(c_intptr_t), allocatable :: edges(:)
         integer(c_intptr_t) :: root         ! edge to start navigating at
         integer(4) :: vc, ec
         real(8) :: max_radius
@@ -22,11 +21,9 @@ module delaunay
     
     contains
     
-    subroutine add_edge (del,edge)
+    subroutine add_edge (del)
         type(mesh), intent(inout) :: del
-        integer(c_intptr_t), intent(in) :: edge
         del%ec = del%ec + 1
-        del%edges(del%ec) = edge
     end subroutine
     
     subroutine add_vertex (del,vertex)
@@ -35,13 +32,6 @@ module delaunay
         del%vc = del%vc + 1
         del%vertices(del%vc) = vertex
     end subroutine
-    
-    function get_edges(del) result (edges)
-        type(mesh) :: del
-        integer(c_intptr_t), allocatable :: edges(:)
-        allocate(edges(del%ec))
-        edges = del%edges(1:del%ec)
-    end function
     
     function get_vertices(del) result (vertices)
         type(mesh) :: del
@@ -178,16 +168,13 @@ module delaunay
         call splice(SYM(b),c)
         call splice(SYM(c),a)
                 
-        allocate(del%edges(1000),del%vertices(1000))
+        allocate(del%vertices(1000))
         
         del%vc = 3
         del%ec = 3
         del%vertices(1) = bl
         del%vertices(2) = br
         del%vertices(3) = tm
-        del%edges(1) = a
-        del%edges(2) = b
-        del%edges(3) = c
         
         del%root = a
     end subroutine
@@ -359,12 +346,12 @@ module delaunay
         call splice(b,e)
         
         s = b
-        call add_edge(del,b)
+        call add_edge(del)
         
         do while (LNEXT(e) /= s)
             b = connect(e,SYM(b))
             e = OPREV(b)
-            call add_edge(del,b)
+            call add_edge(del)
         end do
         
         do while (.TRUE.)

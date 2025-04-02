@@ -3,6 +3,13 @@ module mesh_helper
     use quad_edge
     implicit none
         
+    type edge_acumulator
+        integer(c_intptr_t), allocatable :: edges(:)
+        integer :: index
+    end type
+    
+    private edge_acumulator, edge_reduce
+    
     contains
     
     function euler_vertices (edges, faces) result (vertices)
@@ -36,10 +43,72 @@ module mesh_helper
         char = 1 == vertices - edges + faces
     end function
     
+    !--------------------!
+    !   Mesh operators   !
+    !--------------------!
+    
+    subroutine edge_reduce(edge,closure) 
+        integer(c_intptr_t), intent(in) :: edge
+        type(c_ptr), intent(in) :: closure
+        type(edge_acumulator), pointer :: acc
+        call c_f_pointer(closure,acc)
+        
+        acc%edges(acc%index) = edge
+        acc%index = acc%index + 1
+    end subroutine
+    
+    
+    function list_edges (del) result(edges)
+        type(mesh) :: del
+        integer(c_intptr_t), allocatable :: edges(:)
+        type(edge_acumulator), target :: acc
+        type(c_ptr) :: ptr
+        allocate(acc%edges(del%ec))
+        acc%edges = 0
+        acc%index = 1
+        ptr = c_loc(acc)
+        
+        call quad_enum(del%root, edge_reduce, ptr) 
+        edges = acc%edges
+    end function
+    
+    function adjacency (del) result (list)
+        type(mesh) :: del
+        integer(c_intptr_t), allocatable :: list(:)
+        integer, allocatable :: visit_count
+        integer :: i
+        integer(c_intptr_t) :: tmp_edge
+        type(edge_struct), pointer :: edge_ptr
+        integer, pointer :: visit_ptr
+        
+        
+        allocate(visit_count(del%ec))
+        list = list_edges(del)
+        visit_count = 0
+        
+        do i = 1, del%ec
+            edge_ptr => deref(list(i))
+            visit_ptr => visit_count(i)
+            edge_ptr%tmp = c_loc(visit_count(i))
+        end do        
+    end function
+        
+        
+        
+    
+    
+    
+    
+    
     function extract_mesh (del) result(faces)
         type(mesh) :: del
         type(vec3i), allocatable :: faces(:)
-        allocate(faces(100))
+        integer, allocatable :: visited(:)
+        integer :: face_count, i
+        integer(c_intptr_t) :: a,b,c
+        face_count = euler_faces(del%vc, del%ec)
+        allocate(faces(face_count), visited(del%ec)) 
+        
     end function
     
     subroutine adjacency_list (e,c)
