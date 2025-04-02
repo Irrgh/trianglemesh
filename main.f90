@@ -33,7 +33,7 @@ program main
         end do
     end do
     
-    call init(del, vec3f(0,0,0,"BL"), vec3f(0,1,0,"TL"), vec3f(1,1,0,"TR"), vec3f(1,0,0,"BR"))
+    call init(del, 1000.0)
     
     
     call insert_site(del,vec3f(0.4,0.6,1,"AH"))

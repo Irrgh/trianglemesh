@@ -17,6 +17,7 @@ module delaunay
         integer(c_intptr_t), allocatable :: edges(:)
         integer(c_intptr_t) :: root         ! edge to start navigating at
         integer(4) :: vc, ec
+        real(8) :: max_radius
     end type
     
     contains
@@ -123,63 +124,66 @@ module delaunay
         call end_points(e, DDATA(a), DDATA(b))
     end subroutine
     
-    !-------------------------------!
-    !               c               !
-    !       tl ----------- tr       !
-    !       |       b   -   |       !
-    !     a |       -       | d     !
-    !       |   -           |       !
-    !       bl ----------- br       !
-    !               e               !
-    !-------------------------------!
+    !--------------------------!
+    !                          !
+    !            tm            ! 
+    !           /  \           !
+    !       a  /    \ c        !
+    !         /      \         !
+    !        /        \        !
+    !       bl ------ br       !
+    !             b            !
+    !--------------------------!
     
-    subroutine init (m,bl,tl,tr,br)
-        type(vec3f), target, intent(in) :: bl,tl,tr,br
-        type(mesh), intent(inout) :: m
+    subroutine init (del,max_radius)
+        type(mesh), intent(inout) :: del
+        real, intent(in) :: max_radius
         type(vec3f), pointer :: t1,t2
-        type(edge_struct), pointer :: p1, p2, p3
-        integer(c_intptr_t) :: a, b, c, d, e
+        integer(c_intptr_t) :: a, b, c
+        type(vec3f), target :: bl, br, tm
+        real(8) :: length, height
+        real(8), parameter :: pi = 3.14159265358979323846
+          
+        length = 2 * max_radius * SIN((60.0 / 180.0) * pi)  ! half the side length
+        height = 2 * max_radius                             ! from center to tm        SQRT(length**2 + max_radius**2)    
+        
+        bl = vec3f(-length, -max_radius, 0, "bl")
+        br = vec3f(length, -max_radius, 0, "br")
+        tm = vec3f(0, height, 0, "tm")
+        
+        del%max_radius = max_radius
         
         a = make_edge()
         b = make_edge()
+        c = make_edge()
         
-        t1 => tl
+        t1 => tm
         t2 => bl
         call end_points(a,c_loc(t1),c_loc(t2))    
         t1 => bl
-        t2 => tr
+        t2 => br
         call end_points(b,c_loc(t1),c_loc(t2))
+        t1 => br
+        t2 => tm
+        call end_points(c,c_loc(t1), c_loc(t2))
+        
         
         call splice(SYM(a),b)
+        call splice(SYM(b),c)
+        call splice(SYM(c),a)
+                
+        allocate(del%edges(1000),del%vertices(1000))
         
-        c = connect(b,a) 
+        del%vc = 3
+        del%ec = 3
+        del%vertices(1) = bl
+        del%vertices(2) = br
+        del%vertices(3) = tm
+        del%edges(1) = a
+        del%edges(2) = b
+        del%edges(3) = c
         
-        !d = make_edge()
-        !call splice(c, d)
-        !t1 => tr
-        !t2 => br
-        !call end_points(d, c_loc(t1), c_loc(t2))
-        !
-        !e = make_edge()
-        !call splice(SYM(d),e)
-        !t1 => br
-        !t2 => bl
-        !call end_points(e, c_loc(t1),c_loc(t2))
-        
-        allocate(m%edges(1000))
-        allocate(m%vertices(1000))
-        
-        
-        m%vc = 3
-        m%ec = 3
-        m%vertices(1) = tl
-        m%vertices(2) = bl
-        m%vertices(3) = tr
-        m%edges(1) = a
-        m%edges(2) = b
-        m%edges(3) = c
-        
-        m%root = a
+        del%root = a
     end subroutine
             
     subroutine print_edge (edge,closure)
@@ -320,10 +324,15 @@ module delaunay
     subroutine insert_site (del,p)
         type(mesh), intent(inout) :: del
         type(vec3f), intent(in), target :: p
-        integer(c_intptr_t) :: e,b,s,t
         type(vec3f), pointer :: tmp
+        integer(c_intptr_t) :: e,b,s,t
         
-        e = locate(del,p)
+        if (length_vec3f(p) > del%max_radius) then
+            print *,"Cannot add point to delaunay triangulation: p(",p%x,",",p%y, ") is outside of specified max_radius of ", del%max_radius
+            stop
+        end if
+        
+        e = locate(del,p)       ! one edge of the containing triangle
         call add_vertex(del,p)
         
         if (equals_vec3f(p,org(e)) .OR. equals_vec3f(p,dest(e))) then

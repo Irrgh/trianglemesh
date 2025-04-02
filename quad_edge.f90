@@ -68,7 +68,6 @@ module quad_edge
         type(edge_struct), pointer :: edge
         edge => deref(e)
         rotrnext_e = edge%next(((e+1) .AND. 3)+1)
-        !rotrnext_e = ROT(ONEXT(e))
     end function
     
     function SYMDNEXT (e) result (symdnext_e)
