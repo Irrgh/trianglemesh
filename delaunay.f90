@@ -116,7 +116,7 @@ module delaunay
         integer(c_intptr_t), intent(in) :: e
         integer(c_intptr_t) :: a,b
         a = OPREV(e)
-        b = SYM(OPREV(e))                   ! SYM(OPREV(e)) == RNEXT(e)
+        b = OPREV(SYM(e))                   ! SYM(OPREV(e)) == RNEXT(e)
         call splice (e, a)
         call splice (SYM(e), b)             
         call splice (e, LNEXT(a))           ! LNEXT(e) == DNEXT(e)
@@ -135,6 +135,12 @@ module delaunay
     !             b            !
     !--------------------------!
     
+    
+    
+    
+    ! Initialises a delaunay triangulation with a bounding triangle.
+    ! It is garanteed that all points p with length_vec3f(p) <= max_radius
+    ! are valid point to add to the triangulation. 
     subroutine init (del,max_radius)
         type(mesh), intent(inout) :: del
         real, intent(in) :: max_radius
@@ -320,7 +326,9 @@ module delaunay
     end function
     
     
-    ! Inserts a new point existing triangulation
+    ! Inserts a point p into a existing delaunay triangulation.
+    ! Valid if length_vec3f(p) <= del%max_radius
+    ! If point is already contained in the triangulation do nothing.
     subroutine insert_site (del,p)
         type(mesh), intent(inout) :: del
         type(vec3f), intent(in), target :: p
@@ -333,7 +341,7 @@ module delaunay
         end if
         
         e = locate(del,p)       ! one edge of the containing triangle
-        call add_vertex(del,p)
+        
         
         if (equals_vec3f(p,org(e)) .OR. equals_vec3f(p,dest(e))) then
             return
@@ -342,10 +350,12 @@ module delaunay
             call destroy_edge(ONEXT(e))
         end if
         
-        b = make_edge()
-        tmp => p
+        call add_vertex(del,p)
         
-        call end_points(b, ODATA(e), c_loc(tmp))
+        tmp => p
+        b = make_edge()
+    
+        call end_points(b, ODATA(e), c_loc(p))
         call splice(b,e)
         
         s = b

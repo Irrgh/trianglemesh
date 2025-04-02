@@ -36,10 +36,20 @@ program main
     call init(del, 1000.0)
     
     
-    call insert_site(del,vec3f(0.4,0.6,1,"AH"))
-    call insert_site(del,vec3f(0.5,0.7,2,"KO"))
-    
     call quad_enum(del%root, adjacency_list, c_null_ptr)
+    print *, "--------------------------------------------------"
+    
+    call insert_site(del,vec3f(0.4,0.6,1,"AH"))
+    call quad_enum(del%root, adjacency_list, c_null_ptr)
+    print *, "--------------------------------------------------"
+    
+    call insert_site(del,vec3f(0.5,0.7,2,"KO"))
+    call quad_enum(del%root, adjacency_list, c_null_ptr)
+    print *, "--------------------------------------------------"
+    
+    call insert_site(del,vec3f(23.5,-34.4,8,"IO"))
+    call quad_enum(del%root, adjacency_list, c_null_ptr)
+    print *, "--------------------------------------------------"
     
     
     call generate_faces(face_data,nsize)
