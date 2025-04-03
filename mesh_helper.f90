@@ -8,6 +8,24 @@ module mesh_helper
         integer :: index
     end type
     
+    type vec3f_
+        real(8) :: x,y,z
+    end type
+    
+    type vec3i_
+        integer(4) :: x,y,z
+    end type
+    
+    type vec2i_
+        integer(4) :: x,y
+    end type
+    
+    type mesh 
+        type(vec3f_), allocatable :: vertices(:)
+        type(vec2i_), allocatable :: edges(:)
+        type(vec3i_), allocatable :: faces(:)
+    end type
+    
     private edge_acumulator, edge_reduce
     
     contains
@@ -44,7 +62,7 @@ module mesh_helper
     end function
     
     !--------------------!
-    !   Mesh operators   !
+    !   tm_del operators !
     !--------------------!
     
     subroutine edge_reduce(edge,closure) 
@@ -57,9 +75,8 @@ module mesh_helper
         acc%index = acc%index + 1
     end subroutine
     
-    
     function list_edges (del) result(edges)
-        type(mesh) :: del
+        type(tm_del) :: del
         integer(c_intptr_t), allocatable :: edges(:)
         type(edge_acumulator), target :: acc
         type(c_ptr) :: ptr
@@ -72,25 +89,80 @@ module mesh_helper
         edges = acc%edges
     end function
     
-    function adjacency (del) result (list)
-        type(mesh) :: del
+    function get_mesh (del) result (m)
+        type(tm_del) :: del
         integer(c_intptr_t), allocatable :: list(:)
-        integer, allocatable :: visit_count
-        integer :: i
-        integer(c_intptr_t) :: tmp_edge
-        type(edge_struct), pointer :: edge_ptr
-        integer, pointer :: visit_ptr
+        type(mesh) :: m
+        integer(c_intptr_t) :: e0, e1, e2
+        type(edge_struct), pointer :: p0, p1, p2
+        type(vec3f) :: tmp
+        integer(c_intptr_t) :: t0, t1, t2, h0, h1, h2, i, f_idx, v_loc
+        integer, parameter :: stride = 32    ! size of type would be 26 but alignment is 32
+        
+        v_loc = loc(del%vertices)
         
         
-        allocate(visit_count(del%ec))
         list = list_edges(del)
-        visit_count = 0
+        allocate(m%vertices(del%vc), m%edges(del%ec), m%faces(euler_faces(del%vc,del%ec)))
+        
+        
+
+        do i = 1, del%vc            ! maps the internal delaunay vertices
+            tmp = del%vertices(i)
+            m%vertices(i) = vec3f_(tmp%x, tmp%y, tmp%z)    
+        end do
         
         do i = 1, del%ec
-            edge_ptr => deref(list(i))
-            visit_ptr => visit_count(i)
-            edge_ptr%tmp = c_loc(visit_count(i))
-        end do        
+            p0 => deref(list(i))
+            p0%mark = ISHFT(i,2)
+        end do
+        
+        f_idx = 1
+        do i = 1, del%ec
+            e0 = list(i)
+            e1 = LNEXT(e0)
+            e2 = LNEXT(e1)
+            
+            if (LNEXT(e2) /= e0) then   ! cw triangle -> ccw triangle
+                e0 = SYM(e0)
+                e1 = LNEXT(e0)
+                e2 = LNEXT(e1)
+            end if
+            
+            p0 => deref(e0)
+            p1 => deref(e1)
+            p2 => deref(e2)
+            
+            t0 = (e0 .AND. 2) / 2
+            t1 = (e1 .AND. 2) / 2
+            t2 = (e2 .AND. 2) / 2
+            
+            h0 = p0%mark .AND. ISHFT(1,t0)
+            h1 = p1%mark .AND. ISHFT(1,t1)
+            h2 = p2%mark .AND. ISHFT(1,t2)
+            
+            
+            if (h0 == 0 .AND. h1 == 0 .AND. h2 == 0) then       ! has this orientation of the edges been used before
+                p0%mark = p0%mark .OR. ISHFT(1,t0)
+                p1%mark = p1%mark .OR. ISHFT(1,t1)
+                p2%mark = p2%mark .OR. ISHFT(1,t2)
+                
+                t0 = TRANSFER(ODATA(e0),t0)
+                t1 = TRANSFER(ODATA(e1),t1)
+                t2 = TRANSFER(ODATA(e2),t2)
+                
+                t0 = (t0 - v_loc) / stride
+                t1 = (t1 - v_loc) / stride
+                t2 = (t2 - v_loc) / stride    
+                
+                m%faces(f_idx) = vec3i_(t0,t1,t2)
+                f_idx = f_idx + 1
+            end if
+            
+            h0 = TRANSFER(DDATA(e0),h0)
+            h0 = (h0 - v_loc) / stride
+            m%edges(i)   = vec2i_(t0,h0)
+        end do
     end function
         
         
@@ -100,8 +172,8 @@ module mesh_helper
     
     
     
-    function extract_mesh (del) result(faces)
-        type(mesh) :: del
+    function extract_tm_del (del) result(faces)
+        type(tm_del) :: del
         type(vec3i), allocatable :: faces(:)
         integer, allocatable :: visited(:)
         integer :: face_count, i

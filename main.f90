@@ -10,56 +10,72 @@ program main
     integer, parameter :: nsize = 401
     real(8), allocatable :: data(:), datad1(:,:), datad1x(:,:), datad1y(:,:)
     integer(4), allocatable :: face_data(:)
-    type(mesh) :: del
+    type(tm_del) :: del
+    type(mesh) :: m
+    real(8) :: x,y
     
+    !allocate(datad1x(nsize,nsize), datad1y(nsize,nsize), datad1(nsize,nsize))
+    !
+    !call readBin(in_file, data,9)
+    !
+    !print *, loc(data), loc(data(1)), loc(data(2))
+    !
+    !do i = 1, nsize
+    !    do j = 1, nsize
+    !        !datad1(i,j) = data((nsize*(i-1)+j)*3)
+    !    end do
+    !end do
+    !
+    !call convolute_real(datad1,scharr_operator_x,datad1x)
+    !call convolute_real(datad1,scharr_operator_y,datad1y)
+    !
+    !
+    !do i = 1, nsize
+    !    do j = 1, nsize
+    !        data((nsize*(i-1)+j)*3) = sqrt(datad1y(i,j)**2 + datad1y(i,j)**2)
+    !    end do
+    !end do
     
-    allocate(datad1x(nsize,nsize), datad1y(nsize,nsize), datad1(nsize,nsize))
+    call init(del, 100.0,1100)
     
+    !call insert_site(del,vec3f(0,-25,10,"01"))
+    !call insert_site(del,vec3f(-35,0,-5,"02"))
+    !call insert_site(del,vec3f(0,-74.4,16,"03"))
+    !call insert_site(del,vec3f(-34.25,54.34,64.5,"04"))
     
-    
-    
-    
-    call readBin(in_file, data,9)
-    
-    print *, loc(data), loc(data(1)), loc(data(2))
-    
-    do i = 1, nsize
-        do j = 1, nsize
-            !datad1(i,j) = data((nsize*(i-1)+j)*3)
-        end do
+    call RANDOM_SEED()
+    do i = 1, 1000
+        call RANDOM_NUMBER(x)
+        call RANDOM_NUMBER(y)
+        x = x*120-60
+        y = y*120-60
+        if (MOD(i,10) == 0) then
+            print *, i
+        end if
+        
+        
+        call insert_site(del, vec3f(x,y,(SIN(x*0.2) + COS(y*0.2))*2,"__"))
     end do
     
-    call convolute_real(datad1,scharr_operator_x,datad1x)
-    call convolute_real(datad1,scharr_operator_y,datad1y)
     
-   
-    do i = 1, nsize
-        do j = 1, nsize
-            data((nsize*(i-1)+j)*3) = sqrt(datad1y(i,j)**2 + datad1y(i,j)**2)
-        end do
-    end do
+    !call quad_enum(del%root,adjacency_list,c_null_ptr)
     
-    call init(del, 1000.0)
-    
-    call insert_site(del,vec3f(0.4,0.6,1,"01"))
-    call insert_site(del,vec3f(0.5,0.7,2,"02"))
-    call insert_site(del,vec3f(23.5,-34.4,8,"03"))
-    call insert_site(del,vec3f(-342.5,543.4,645,"04"))
-    
-    call quad_enum(del%root,adjacency_list,c_null_ptr)
-    
-    print *, list_edges(del)
     print *, del%vc, del%ec, euler_faces(del%vc, del%ec)
     
-    call generate_faces(face_data,nsize)
+    m = get_mesh(del)
     
-    call openBin("faces_400_400.bin",10)
-    write(10) face_data
+    !allocate(data(3*del%vc))
+    !
+    !!call generate_faces(face_data,nsize)
+    !
+    !
+    call openBin("delaunay_faces.bin",10)
+    write(10) m%faces
     close(10)
-    deallocate(face_data)
-    
-    call openBin("vertex_400_400.bin",11)
-    write(11) data(1:nsize*nsize*3+1)
+    !!deallocate(face_data)
+    !
+    call openBin("delaunay_vertex.bin",11)
+    write(11) m%vertices
     close(11)
-    deallocate(data)
+    !deallocate(data)
 end program

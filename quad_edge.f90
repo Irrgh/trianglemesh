@@ -16,7 +16,6 @@ module quad_edge
     type edge_struct
         integer(c_intptr_t) :: next(4)
         type(c_ptr) :: data(4)
-        type(c_ptr) :: tmp      ! points to any extra info that might be needed, because i dont want write a hashmap right now
         integer(c_int64_t) :: mark
     end type
     
@@ -219,7 +218,6 @@ module quad_edge
         edge%next(2) = TOR(e)   ! ROTRNEXT
         edge%next(4) = ROT(e)   ! TORLNEXT
         edge%data = c_null_ptr
-        edge%tmp = c_null_ptr
         edge%mark = 0
     end function
     
@@ -266,7 +264,6 @@ module quad_edge
         edge => deref(e)
         edge%next = 0
         edge%data = c_null_ptr
-        egde%tmp = c_null_ptr
         deallocate(edge)
     end subroutine
     

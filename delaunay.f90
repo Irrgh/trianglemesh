@@ -1,7 +1,7 @@
 module delaunay
     use quad_edge
     use iso_c_binding
-        
+    
     type vec3f
         real(8) :: x,y,z
         character(len = 2) :: n
@@ -12,29 +12,37 @@ module delaunay
         integer(4) :: x,y,z
     end type
     
-    type mesh
+    
+    type tm_del
         type(vec3f), allocatable :: vertices(:)
         integer(c_intptr_t) :: root         ! edge to start navigating at
-        integer(4) :: vc, ec
+        integer(4) :: vc, ec, capacity
         real(8) :: max_radius
     end type
     
     contains
     
     subroutine add_edge (del)
-        type(mesh), intent(inout) :: del
+        type(tm_del), intent(inout) :: del
         del%ec = del%ec + 1
     end subroutine
     
-    subroutine add_vertex (del,vertex)
-        type(mesh), intent(inout) :: del
-        type(vec3f), intent(in) :: vertex
-        del%vc = del%vc + 1
-        del%vertices(del%vc) = vertex
+    subroutine remove_edge(del)
+        type(tm_del), intent(inout) :: del
+        del%ec = del%ec - 1
     end subroutine
     
+    function add_vertex (del,vertex) result (addr)
+        type(tm_del), target :: del
+        type(vec3f) :: vertex
+        type(c_ptr) :: addr
+        del%vc = del%vc + 1
+        del%vertices(del%vc) = vertex
+        addr = c_loc(del%vertices(del%vc))
+    end function
+    
     function get_vertices(del) result (vertices)
-        type(mesh) :: del
+        type(tm_del) :: del
         type(vec3f), allocatable :: vertices(:)
         allocate(vertices(del%vc))
         vertices = del%vertices(1:del%vc)
@@ -70,7 +78,8 @@ module delaunay
     function equals_vec3f(a,b) result (l)
         type(vec3f) :: a,b
         logical :: l
-        l = (a%x == b%x) .AND. (a%y == b%y)
+        real(8), parameter :: EPS = 0.001
+        l = abs(a%x - b%x) < EPS .AND. abs(a%y - b%y) < EPS
     end function
     
     !---------------------------------------!
@@ -131,10 +140,11 @@ module delaunay
     ! Initialises a delaunay triangulation with a bounding triangle.
     ! It is garanteed that all points p with length_vec3f(p) <= max_radius
     ! are valid point to add to the triangulation. 
-    subroutine init (del,max_radius)
-        type(mesh), intent(inout) :: del
+    subroutine init (del,max_radius,capacity)
+        type(tm_del), intent(inout) :: del
         real, intent(in) :: max_radius
-        type(vec3f), pointer :: t1,t2
+        integer, intent(in) :: capacity
+        type(c_ptr) :: t1,t2,t3
         integer(c_intptr_t) :: a, b, c
         type(vec3f), target :: bl, br, tm
         real(8) :: length, height
@@ -148,33 +158,27 @@ module delaunay
         tm = vec3f(0, height, 0, "tm")
         
         del%max_radius = max_radius
+        del%capacity = capacity
         
         a = make_edge()
         b = make_edge()
         c = make_edge()
         
-        t1 => tm
-        t2 => bl
-        call end_points(a,c_loc(t1),c_loc(t2))    
-        t1 => bl
-        t2 => br
-        call end_points(b,c_loc(t1),c_loc(t2))
-        t1 => br
-        t2 => tm
-        call end_points(c,c_loc(t1), c_loc(t2))
         
+        allocate(del%vertices(capacity))
+        del%vc = 0
+        del%ec = 3
+        
+        t1 = add_vertex(del,tm)
+        t2 = add_vertex(del,bl)
+        t3 = add_vertex(del,br)
+        call end_points(a,t1,t2)    
+        call end_points(b,t2,t3)
+        call end_points(c,t3,t1)
         
         call splice(SYM(a),b)
         call splice(SYM(b),c)
         call splice(SYM(c),a)
-                
-        allocate(del%vertices(1000))
-        
-        del%vc = 3
-        del%ec = 3
-        del%vertices(1) = bl
-        del%vertices(2) = br
-        del%vertices(3) = tm
         
         del%root = a
     end subroutine
@@ -292,7 +296,7 @@ module delaunay
     
     ! Finds one edge of the triangle of the delaunay triangulation that contains the point.
     function locate(del, p) result (e)
-        type(mesh) :: del
+        type(tm_del) :: del
         type(vec3f) :: p
         integer(c_intptr_t) :: e
         e = del%root
@@ -317,15 +321,21 @@ module delaunay
     ! Valid if length_vec3f(p) <= del%max_radius
     ! If point is already contained in the triangulation do nothing.
     subroutine insert_site (del,p)
-        type(mesh), intent(inout) :: del
+        type(tm_del), intent(inout) :: del
         type(vec3f), intent(in), target :: p
-        type(vec3f), pointer :: tmp
+        type(c_ptr) :: tmp
         integer(c_intptr_t) :: e,b,s,t
         
         if (length_vec3f(p) > del%max_radius) then
             print *,"Cannot add point to delaunay triangulation: p(",p%x,",",p%y, ") is outside of specified max_radius of ", del%max_radius
             stop
         end if
+        
+        if (del%vc >= del%capacity) then
+            print *, "Maximum capacity of ", del%capacity, " vertices reached."
+            stop
+        end if
+        
         
         e = locate(del,p)       ! one edge of the containing triangle
         
@@ -335,14 +345,13 @@ module delaunay
         else if (on_edge(p,e)) then
             e = OPREV(e)
             call destroy_edge(ONEXT(e))
+            call remove_edge(del)
         end if
         
-        call add_vertex(del,p)
-        
-        tmp => p
+        tmp = add_vertex(del,p)
         b = make_edge()
     
-        call end_points(b, ODATA(e), c_loc(p))
+        call end_points(b, ODATA(e), tmp)
         call splice(b,e)
         
         s = b
