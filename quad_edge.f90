@@ -342,18 +342,19 @@ module quad_edge
     end subroutine
     
     recursive subroutine quad_do_enum(a,v_proc,closure,mark)
-        integer(c_intptr_t) :: a
+        integer(c_intptr_t), intent(in) :: a
         procedure(visit_proc) :: v_proc
         type(c_ptr),intent(in) :: closure
         type(edge_struct), pointer :: edge
         integer(c_int64_t), intent(in) :: mark
-        
-        do while (deref(a)%mark /= mark)
-            call v_proc(a,closure)
-            edge => deref(a)
+        integer(c_intptr_t) :: t
+        t = a
+        do while (deref(t)%mark /= mark)
+            call v_proc(t,closure)
+            edge => deref(t)
             edge%mark = mark
-            call quad_do_enum(ONEXT(SYM(a)), v_proc, closure, mark)
-            a = ONEXT(a)
+            call quad_do_enum(ONEXT(SYM(t)), v_proc, closure, mark)
+            t = ONEXT(t)
         end do
         edge => NULL()
     end subroutine
