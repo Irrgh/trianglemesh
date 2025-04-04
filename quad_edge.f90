@@ -265,6 +265,7 @@ module quad_edge
         edge%next = 0
         edge%data = c_null_ptr
         deallocate(edge)
+        edge => NULL()
     end subroutine
     
     !-------------------------------!
@@ -331,12 +332,15 @@ module quad_edge
         procedure(visit_proc) :: v_proc
         type(c_ptr),intent(in) :: closure
         integer(c_int64_t) :: mark
+        type(edge_struct), pointer :: eee
         mark = nextMark
         nextMark = nextMark + 1
         
         if (nextMark == 0) then 
             nextMark = 1
         end if
+        
+        eee => deref(a)
         
         call quad_do_enum(a,v_proc,closure,mark)
     end subroutine

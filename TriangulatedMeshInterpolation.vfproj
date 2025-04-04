@@ -58,11 +58,11 @@
 			<File RelativePath=".\delaunay.f90"/>
 			<File RelativePath=".\main.f90">
 			</File>
-			<File RelativePath=".\mesh_helper.f90">
-			</File>
-			<File RelativePath=".\quad_edge.f90">
-			</File>
+			<File RelativePath=".\mesh_helper.f90"/>
+			<File RelativePath=".\quad_edge.f90"/>
 			<File RelativePath=".\tm_data.f90"/>
+			<File RelativePath=".\vector.f90">
+			</File>
 		</Filter>
 	</Files>
 	<Globals/>

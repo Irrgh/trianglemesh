@@ -1,6 +1,7 @@
 module mesh_helper
     use delaunay
     use quad_edge
+    use vector
     implicit none
         
     type edge_acumulator
@@ -8,22 +9,11 @@ module mesh_helper
         integer :: index
     end type
     
-    type vec3f_
-        real(8) :: x,y,z
-    end type
-    
-    type vec3i_
-        integer(4) :: x,y,z
-    end type
-    
-    type vec2i_
-        integer(4) :: x,y
-    end type
     
     type mesh 
-        type(vec3f_), allocatable :: vertices(:)
-        type(vec2i_), allocatable :: edges(:)
-        type(vec3i_), allocatable :: faces(:)
+        type(vec3_f64), allocatable :: vertices(:)
+        type(vec2_i32), allocatable :: edges(:)
+        type(vec3_i32), allocatable :: faces(:)
     end type
     
     private edge_acumulator, edge_reduce
@@ -109,7 +99,7 @@ module mesh_helper
 
         do i = 1, del%vc            ! maps the internal delaunay vertices
             tmp = del%vertices(i)
-            m%vertices(i) = vec3f_(tmp%x, tmp%y, tmp%z)    
+            m%vertices(i) = vec3_f64(tmp%x, tmp%y, tmp%z)    
         end do
         
         do i = 1, del%ec
@@ -155,33 +145,62 @@ module mesh_helper
                 t1 = (t1 - v_loc) / stride
                 t2 = (t2 - v_loc) / stride    
                 
-                m%faces(f_idx) = vec3i_(t0,t1,t2)
+                m%faces(f_idx) = vec3_i32(t0,t1,t2)
                 f_idx = f_idx + 1
             end if
             
             h0 = TRANSFER(DDATA(e0),h0)
             h0 = (h0 - v_loc) / stride
-            m%edges(i)   = vec2i_(t0,h0)
+            m%edges(i)   = vec2_i32(t0,h0)
         end do
     end function
         
+    subroutine print_mesh_info(del) 
+        type(tm_del), intent(in) :: del
+        type(mesh) :: m
+        type(vec2_f64) :: e0,e1,e2,e3, v0, v1, v2
+        type(vec3_i32) :: f
+        real(8) :: alpha, beta, gamma
+        integer :: i
+        m = get_mesh(del)
+        
+        do i = 1, SIZE(m%faces)
+            f = m%faces(i)
+            
+            v0 = vec2_f64(m%vertices(f%x+1)%x,m%vertices(f%x+1)%y)
+            v1 = vec2_f64(m%vertices(f%y+1)%x,m%vertices(f%y+1)%y)
+            v2 = vec2_f64(m%vertices(f%z+1)%x,m%vertices(f%z+1)%y)
+            
+            e0 = vec2_f64_sub(v1,v0)
+            e1 = vec2_f64_sub(v2,v0)
+            e2 = vec2_f64_sub(v1,v2)
+            e3 = vec2_f64_sub(v0,v1)
+            
+            alpha = vec2_f64_angle(e0,e1)
+            beta = vec2_f64_angle(e0,e2)
+            gamma = ACOS(-1.0) - alpha - beta
+            
+            alpha = (alpha * 180.0) / ACOS(-1.0)
+            beta = (beta * 180.0) / ACOS(-1.0)
+            gamma = (gamma * 180.0) / ACOS(-1.0)
+            
+            if (alpha < 15 .or. beta < 15 .or. gamma < 15) then
+                
+                print *, i, alpha, beta, gamma
+                
+            end if
+            
+        end do
         
         
-    
-    
-    
-    
-    
-    function extract_tm_del (del) result(faces)
-        type(tm_del) :: del
-        type(vec3i), allocatable :: faces(:)
-        integer, allocatable :: visited(:)
-        integer :: face_count, i
-        integer(c_intptr_t) :: a,b,c
-        face_count = euler_faces(del%vc, del%ec)
-        allocate(faces(face_count), visited(del%ec)) 
         
-    end function
+    
+    end subroutine
+    
+        
+    
+    
+    
     
     subroutine adjacency_list (e,c)
         integer(c_intptr_t), intent(in) :: e

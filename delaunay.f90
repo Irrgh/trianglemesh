@@ -41,6 +41,11 @@ module delaunay
         addr = c_loc(del%vertices(del%vc))
     end function
     
+    subroutine remove_vertex (del)
+        type(tm_del), intent(inout) :: del
+        del%vc = del%vc - 1    
+    end subroutine
+    
     function get_vertices(del) result (vertices)
         type(tm_del) :: del
         type(vec3f), allocatable :: vertices(:)
@@ -298,10 +303,18 @@ module delaunay
     function locate(del, p) result (e)
         type(tm_del) :: del
         type(vec3f) :: p
-        integer(c_intptr_t) :: e
+        integer(c_intptr_t) :: e, i
         e = del%root
         
+        i = 1
         do while (.TRUE.)
+            
+            if (del%ec * 4 < i) then
+                !call print_mesh_info(del)
+            end if
+    
+            i = i + i
+            
             if (equals_vec3f(p,org(e)) .OR. equals_vec3f(p,dest(e))) then
                 return
             else if (right_of(p,e)) then
@@ -314,6 +327,8 @@ module delaunay
                 return
             end if
         end do
+        
+        
     end function
     
     
@@ -375,6 +390,60 @@ module delaunay
             end if
         end do
     end subroutine
+    
+    subroutine finalize (del)
+        type(tm_del), intent(inout) :: del
+        integer(c_intptr_t) :: a,b,c,t0,t1
+        
+        a = del%root
+        b = RPREV(a)
+        c = RPREV(b)
+        
+        if (RPREV(c) == a) then
+            
+            del%root = RPREV(LNEXT(a))
+             
+            !t0 = ONEXT(b)
+            !
+            !do while (t0 /= SYM(a))
+            !    t1 = ONEXT(t0)
+            !    call destroy_edge(t0)
+            !    call remove_edge(del)
+            !    t0 = t1
+            !end do
+            !
+            !t0 = ONEXT(a)
+            
+            !do while (t0 /= SYM(c))
+            !    t1 = ONEXT(t0)
+            !    call destroy_edge(t0)
+            !    call remove_edge(del)
+            !    t0 = t1
+            !end do
+            !
+            !t0 = ONEXT(c)
+            !
+            !do while (t0 /= SYM(b))
+            !    t1 = ONEXT(t0)
+            !    call destroy_edge(t0)
+            !    call remove_edge(del)
+            !    t0 = t1
+            !end do
+            
+            call destroy_edge(a)
+            call destroy_edge(b)
+            !call destroy_edge(c)
+            call remove_edge(del)
+            call remove_edge(del)
+            !call remove_edge(del)
+            !
+            !call remove_vertex(del)
+            !call remove_vertex(del)
+            !call remove_vertex(del)
+            
+        end if
+    end subroutine
+    
     
     
 end module
