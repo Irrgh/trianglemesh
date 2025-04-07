@@ -20,6 +20,7 @@ module delaunay
         real(8) :: max_radius
     end type
     
+    
     contains
     
     subroutine add_edge (del)
@@ -83,7 +84,7 @@ module delaunay
     function equals_vec3f(a,b) result (l)
         type(vec3f) :: a,b
         logical :: l
-        real(8), parameter :: EPS = 0.001
+        real(8), parameter :: EPS = 1e-5
         l = abs(a%x - b%x) < EPS .AND. abs(a%y - b%y) < EPS
     end function
     
@@ -278,7 +279,7 @@ module delaunay
         integer(c_intptr_t) :: e
         logical :: l
         real(8) :: t1,t2,t3,m
-        real(8), parameter :: EPS = 1e-3
+        real(8), parameter :: EPS = 1e-5
         
         o = org(e)
         d = dest(e)
@@ -291,10 +292,10 @@ module delaunay
         end if
         t3 = length_vec3f(sub_vec3f(o, d))
         
-        if (t1 > t3 .or. t2 > t3) then
-            l = .TRUE.
-            return
-        end if
+        !if (t1 > t3 .or. t2 > t3) then
+        !    l = .TRUE.
+        !    return
+        !end if
         
         l = abs(tri_area(p,o,d)) < EPS * 2 * t3
     end function
@@ -303,17 +304,15 @@ module delaunay
     function locate(del, p) result (e)
         type(tm_del) :: del
         type(vec3f) :: p
-        integer(c_intptr_t) :: e, i
+        integer(c_intptr_t) :: e
         e = del%root
         
-        i = 1
+   
         do while (.TRUE.)
             
-            if (del%ec * 4 < i) then
-                !call print_mesh_info(del)
-            end if
-    
-            i = i + i
+            !call debug(e)
+            
+            !print *, "___________________________"
             
             if (equals_vec3f(p,org(e)) .OR. equals_vec3f(p,dest(e))) then
                 return
@@ -365,12 +364,12 @@ module delaunay
         
         tmp = add_vertex(del,p)
         b = make_edge()
+        call add_edge(del)
     
+        s = b
         call end_points(b, ODATA(e), tmp)
         call splice(b,e)
         
-        s = b
-        call add_edge(del)
         
         do while (LNEXT(e) /= s)
             b = connect(e,SYM(b))
@@ -382,7 +381,7 @@ module delaunay
             t = OPREV(e)
             if (right_of(dest(t),e) .AND. in_circle(org(e),dest(t), dest(e), p)) then
                 call swap(e)
-                e = OPREV(e)
+                e = t
             else if (ONEXT(e) == s) then
                 return
             else
@@ -403,43 +402,43 @@ module delaunay
             
             del%root = RPREV(LNEXT(a))
              
-            !t0 = ONEXT(b)
-            !
-            !do while (t0 /= SYM(a))
-            !    t1 = ONEXT(t0)
-            !    call destroy_edge(t0)
-            !    call remove_edge(del)
-            !    t0 = t1
-            !end do
-            !
-            !t0 = ONEXT(a)
+            t0 = ONEXT(b)
             
-            !do while (t0 /= SYM(c))
-            !    t1 = ONEXT(t0)
-            !    call destroy_edge(t0)
-            !    call remove_edge(del)
-            !    t0 = t1
-            !end do
-            !
-            !t0 = ONEXT(c)
-            !
-            !do while (t0 /= SYM(b))
-            !    t1 = ONEXT(t0)
-            !    call destroy_edge(t0)
-            !    call remove_edge(del)
-            !    t0 = t1
-            !end do
+            do while (t0 /= SYM(a))
+                t1 = ONEXT(t0)
+                call destroy_edge(t0)
+                call remove_edge(del)
+                t0 = t1
+            end do
+            
+            t0 = ONEXT(a)
+            
+            do while (t0 /= SYM(c))
+                t1 = ONEXT(t0)
+                call destroy_edge(t0)
+                call remove_edge(del)
+                t0 = t1
+            end do
+            
+            t0 = ONEXT(c)
+            
+            do while (t0 /= SYM(b))
+                t1 = ONEXT(t0)
+                call destroy_edge(t0)
+                call remove_edge(del)
+                t0 = t1
+            end do
             
             call destroy_edge(a)
             call destroy_edge(b)
-            !call destroy_edge(c)
+            call destroy_edge(c)
             call remove_edge(del)
             call remove_edge(del)
-            !call remove_edge(del)
-            !
-            !call remove_vertex(del)
-            !call remove_vertex(del)
-            !call remove_vertex(del)
+            call remove_edge(del)
+            
+            call remove_vertex(del)
+            call remove_vertex(del)
+            call remove_vertex(del)
             
         end if
     end subroutine
