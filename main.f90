@@ -37,9 +37,9 @@ program main
     !    end do
     !end do
     
-    call init(del, 100.0,5050)
+    call init(del, 100.0,4005)
          
-    allocate(point_list(5000))
+    allocate(point_list(4000))
     
     !call insert_site(del, vec3f(0.398373349505228,-2.61666070782412,1.89149817489868,"__"))
     !call insert_site(del, vec3f(57.2057069477088,-57.9972388175155,-0.669062087691127,"__"))
@@ -68,7 +68,7 @@ program main
     !call insert_site(del, vec3f(1.67326780139818,-59.3887544367668,2.20113192244139,"__")) ! 19
     
     call RANDOM_SEED()
-    do i = 1, 5000
+    do i = 1, 4000
         call RANDOM_NUMBER(x)
         call RANDOM_NUMBER(y)
         x = x*120-60
@@ -94,6 +94,7 @@ program main
     close(10)
     
     call openBin("delaunay_vertex.bin",11)
-    write(11) m%vertices
+    
+    write(11) m%vertices(6:)
     close(11)
 end program

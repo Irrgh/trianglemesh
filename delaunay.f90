@@ -17,6 +17,7 @@ module delaunay
         type(vec3f), allocatable :: vertices(:)
         integer(c_intptr_t) :: root         ! edge to start navigating at
         integer(4) :: vc, ec, capacity
+        logical :: finalized
         real(8) :: max_radius
     end type
     
@@ -308,12 +309,7 @@ module delaunay
         e = del%root
         
    
-        do while (.TRUE.)
-            
-            !call debug(e)
-            
-            !print *, "___________________________"
-            
+        do while (.TRUE.)            
             if (equals_vec3f(p,org(e)) .OR. equals_vec3f(p,dest(e))) then
                 return
             else if (right_of(p,e)) then
@@ -339,6 +335,11 @@ module delaunay
         type(vec3f), intent(in), target :: p
         type(c_ptr) :: tmp
         integer(c_intptr_t) :: e,b,s,t
+        
+        if (del%finalized) then
+            print *,"Triangulation is already finalized."
+            stop
+        end if
         
         if (length_vec3f(p) > del%max_radius) then
             print *,"Cannot add point to delaunay triangulation: p(",p%x,",",p%y, ") is outside of specified max_radius of ", del%max_radius
@@ -403,14 +404,14 @@ module delaunay
             del%root = RPREV(LNEXT(a))
              
             t0 = ONEXT(b)
-            
+     
             do while (t0 /= SYM(a))
                 t1 = ONEXT(t0)
                 call destroy_edge(t0)
                 call remove_edge(del)
                 t0 = t1
             end do
-            
+                
             t0 = ONEXT(a)
             
             do while (t0 /= SYM(c))

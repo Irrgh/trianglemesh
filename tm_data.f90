@@ -71,7 +71,7 @@ module tm_data
         character(len = *), intent(in) :: path
         integer :: ios
         
-        open (unit=iunit, file=path, form="unformatted", access="stream", status="unknown", iostat=ios)
+        open (unit=iunit, file=path, form="unformatted", access="stream", status="replace", iostat=ios)
         if (ios /= 0) then
             print *, 'Error opening file: ', path, ios
             stop
