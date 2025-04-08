@@ -55,11 +55,14 @@
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 			<File RelativePath=".\convolution.f90"/>
-			<File RelativePath=".\delaunay.f90"/>
+			<File RelativePath=".\delaunay.f90">
+			</File>
+			<File RelativePath=".\euler.f90">
+			</File>
 			<File RelativePath=".\main.f90">
 			</File>
-			<File RelativePath=".\mesh_helper.f90"/>
-			<File RelativePath=".\quad_edge.f90"/>
+			<File RelativePath=".\quad_edge.f90">
+			</File>
 			<File RelativePath=".\tm_data.f90"/>
 			<File RelativePath=".\vector.f90">
 			</File>

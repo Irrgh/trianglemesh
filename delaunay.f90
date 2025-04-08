@@ -1,26 +1,29 @@
 module delaunay
     use quad_edge
     use iso_c_binding
+    use vector
+    use euler
     
-    type vec3f
-        real(8) :: x,y,z
-        character(len = 2) :: n
+    type edge_acumulator
+        integer(c_intptr_t), allocatable :: edges(:)
+        integer :: index
     end type
     
-    
-    type vec3i
-        integer(4) :: x,y,z
+    type mesh 
+        type(vec3_f64), allocatable :: vertices(:)
+        type(vec2_i32), allocatable :: edges(:)
+        type(vec3_i32), allocatable :: faces(:)
     end type
-    
     
     type tm_del
-        type(vec3f), allocatable :: vertices(:)
+        type(vec3_f64), allocatable :: vertices(:)
         integer(c_intptr_t) :: root         ! edge to start navigating at
         integer(4) :: vc, ec, capacity
         logical :: finalized
         real(8) :: max_radius
     end type
     
+    private edge_acumulator, edge_reduce
     
     contains
     
@@ -36,7 +39,7 @@ module delaunay
     
     function add_vertex (del,vertex) result (addr)
         type(tm_del), target :: del
-        type(vec3f) :: vertex
+        type(vec3_f64) :: vertex
         type(c_ptr) :: addr
         del%vc = del%vc + 1
         del%vertices(del%vc) = vertex
@@ -50,45 +53,11 @@ module delaunay
     
     function get_vertices(del) result (vertices)
         type(tm_del) :: del
-        type(vec3f), allocatable :: vertices(:)
+        type(vec3_f64), allocatable :: vertices(:)
         allocate(vertices(del%vc))
         vertices = del%vertices(1:del%vc)
     end function
         
-    
-    
-    
-    !-----------------------------------!
-    !          Bad vector math          !
-    !-----------------------------------!
-    
-    function add_vec3f(a,b) result (c)
-        type(vec3f) :: a,b,c
-        c%x = a%x + b%x
-        c%y = a%y + b%y
-        c%z = a%z + b%z
-    end function
-    
-    function sub_vec3f(a,b) result (c)
-        type(vec3f) :: a,b,c
-        c%x = a%x - b%x
-        c%y = a%y - b%y
-        c%z = a%z - b%z
-    end function
-    
-    function length_vec3f(a) result (l)
-        type(vec3f) :: a
-        real(8) :: l
-        l = sqrt(a%x**2 + a%y**2)
-    end function
-    
-    function equals_vec3f(a,b) result (l)
-        type(vec3f) :: a,b
-        logical :: l
-        real(8), parameter :: EPS = 1e-5
-        l = abs(a%x - b%x) < EPS .AND. abs(a%y - b%y) < EPS
-    end function
-    
     !---------------------------------------!
     !    Auxilliary quad edge operations    !
     !---------------------------------------!
@@ -141,9 +110,6 @@ module delaunay
     !             b            !
     !--------------------------!
     
-    
-    
-    
     ! Initialises a delaunay triangulation with a bounding triangle.
     ! It is garanteed that all points p with length_vec3f(p) <= max_radius
     ! are valid point to add to the triangulation. 
@@ -153,16 +119,16 @@ module delaunay
         integer, intent(in) :: capacity
         type(c_ptr) :: t1,t2,t3
         integer(c_intptr_t) :: a, b, c
-        type(vec3f), target :: bl, br, tm
+        type(vec3_f64), target :: bl, br, tm
         real(8) :: length, height
         real(8), parameter :: pi = 3.14159265358979323846
           
         length = 2 * max_radius * SIN((60.0 / 180.0) * pi)  ! half the side length
         height = 2 * max_radius                             ! from center to tm        SQRT(length**2 + max_radius**2)    
         
-        bl = vec3f(-length, -max_radius, 0, "bl")
-        br = vec3f(length, -max_radius, 0, "br")
-        tm = vec3f(0, height, 0, "tm")
+        bl = vec3_f64(-length, -max_radius, 0)
+        br = vec3_f64(length, -max_radius, 0)
+        tm = vec3_f64(0, height, 0)
         
         del%max_radius = max_radius
         del%capacity = capacity
@@ -172,7 +138,7 @@ module delaunay
         c = make_edge()
         
         
-        allocate(del%vertices(capacity))
+        allocate(del%vertices(capacity+3))
         del%vc = 0
         del%ec = 3
         
@@ -188,23 +154,20 @@ module delaunay
         call splice(SYM(c),a)
         
         del%root = a
+        del%finalized = .FALSE.
     end subroutine
             
-    subroutine print_edge (edge,closure)
-        integer(c_intptr_t), intent(in) :: edge
-        type(c_ptr), intent(in) :: closure
-        print *, "Traversed edge at: ", edge, ", org: ", org(edge)%n, ", dest: ", dest(edge)%n
-    end subroutine
+
     
     function org(e) result (vec)
-        type(vec3f), pointer :: vec
+        type(vec3_f64), pointer :: vec
         integer(c_intptr_t) :: e
        
         call c_f_pointer(ODATA(e),vec)
     end function
     
     function dest(e) result (vec)
-        type(vec3f), pointer :: vec
+        type(vec3_f64), pointer :: vec
         integer(c_intptr_t) :: e
         
         call c_f_pointer(DDATA(e),vec)
@@ -237,66 +200,61 @@ module delaunay
         print *, org(DNEXT(e)), dest(DNEXT(e)), DNEXT(e)
     end subroutine
     
+    
+    
+    
     ! Twice the area of the triangle, positive if ccw
     function tri_area(a,b,c) result (area)
-        type(vec3f) :: a,b,c
+        type(vec3_f64) :: a,b,c
         real(8) :: area
         area = (b%x - a%x) * (c%y - a%y) - (b%y - a%y) * (c%x - a%x)
     end function
     
     function in_circle(a,b,c,d) result (l)
-        type(vec3f) :: a,b,c,d
+        type(vec3_f64) :: a,b,c,d
         logical :: l
-        
         l = (a%x**2 + a%y**2) * tri_area(b,c,d) - &
           & (b%x**2 + b%y**2) * tri_area(a,c,d) + &
           & (c%x**2 + c%y**2) * tri_area(a,b,d) - &
           & (d%x**2 + d%y**2) * tri_area(a,b,c) > 0
-        
     end function
     
     function ccw (a,b,c) result(l)
-        type(vec3f) :: a,b,c
+        type(vec3_f64) :: a,b,c
         logical :: l
         l = tri_area(a,b,c) > 0
     end function
     
     function right_of (p,e) result (l)
-        type(vec3f) :: p
+        type(vec3_f64) :: p
         integer(c_intptr_t) :: e
         logical :: l
         l = ccw(p,dest(e), org(e))
     end function
     
     function left_of (p,e) result (l)
-        type(vec3f) :: p
+        type(vec3_f64) :: p
         integer(c_intptr_t) :: e
         logical :: l
         l = ccw(p,org(e), dest(e))
     end function
     
     function on_edge(p,e) result (l)
-        type(vec3f) :: p, o, d
+        type(vec3_f64) :: p, o, d
         integer(c_intptr_t) :: e
         logical :: l
         real(8) :: t1,t2,t3,m
-        real(8), parameter :: EPS = 1e-5
         
         o = org(e)
         d = dest(e)
-        t1 = length_vec3f(sub_vec3f(p,o))
-        t2 = length_vec3f(sub_vec3f(p,d))
+        t1 = vec3_f64_length(vec3_f64_sub(p,o))
+        t2 = vec3_f64_length(vec3_f64_sub(p,d))
         
         if (t1 < EPS .OR. t2 < EPS) then
             l = .TRUE.
             return
         end if
-        t3 = length_vec3f(sub_vec3f(o, d))
-        
-        !if (t1 > t3 .or. t2 > t3) then
-        !    l = .TRUE.
-        !    return
-        !end if
+        t3 = vec3_f64_length(vec3_f64_sub(o, d))
         
         l = abs(tri_area(p,o,d)) < EPS * 2 * t3
     end function
@@ -304,13 +262,13 @@ module delaunay
     ! Finds one edge of the triangle of the delaunay triangulation that contains the point.
     function locate(del, p) result (e)
         type(tm_del) :: del
-        type(vec3f) :: p
+        type(vec3_f64) :: p
         integer(c_intptr_t) :: e
         e = del%root
         
    
         do while (.TRUE.)            
-            if (equals_vec3f(p,org(e)) .OR. equals_vec3f(p,dest(e))) then
+            if (vec3_f64_equals(p,org(e)) .OR. vec3_f64_equals(p,dest(e))) then
                 return
             else if (right_of(p,e)) then
                 e = SYM(e)
@@ -332,30 +290,29 @@ module delaunay
     ! If point is already contained in the triangulation do nothing.
     subroutine insert_site (del,p)
         type(tm_del), intent(inout) :: del
-        type(vec3f), intent(in), target :: p
+        type(vec3_f64), intent(in), target :: p
         type(c_ptr) :: tmp
         integer(c_intptr_t) :: e,b,s,t
         
         if (del%finalized) then
-            print *,"Triangulation is already finalized."
+            print *,"Point can not be inserted: Triangulation is finalized."
             stop
         end if
         
-        if (length_vec3f(p) > del%max_radius) then
-            print *,"Cannot add point to delaunay triangulation: p(",p%x,",",p%y, ") is outside of specified max_radius of ", del%max_radius
+        if (vec3_f64_length(p) > del%max_radius) then
+            print *,"Point can not be inserted: p(",p%x,",",p%y, ") is outside of specified max_radius of ", del%max_radius
             stop
         end if
         
-        if (del%vc >= del%capacity) then
-            print *, "Maximum capacity of ", del%capacity, " vertices reached."
+        if (del%vc - 3 >= del%capacity) then
+            print *, "Point can not be inserted: Maximum capacity of ", del%capacity, " vertices reached."
             stop
         end if
-        
         
         e = locate(del,p)       ! one edge of the containing triangle
         
         
-        if (equals_vec3f(p,org(e)) .OR. equals_vec3f(p,dest(e))) then
+        if (vec3_f64_equals(p,org(e)) .OR. vec3_f64_equals(p,dest(e))) then
             return
         else if (on_edge(p,e)) then
             e = OPREV(e)
@@ -395,9 +352,15 @@ module delaunay
         type(tm_del), intent(inout) :: del
         integer(c_intptr_t) :: a,b,c,t0,t1
         
+        if (del%finalized) then
+            print *, "Triangulation cannot be finalized: Triangulation is already finalized"
+            return
+        end if
+        
         a = del%root
         b = RPREV(a)
         c = RPREV(b)
+        
         
         if (RPREV(c) == a) then
             
@@ -405,7 +368,7 @@ module delaunay
              
             t0 = ONEXT(b)
      
-            do while (t0 /= SYM(a))
+            do while (t0 /= SYM(a))     ! destroys all ccw edges between b and a
                 t1 = ONEXT(t0)
                 call destroy_edge(t0)
                 call remove_edge(del)
@@ -414,16 +377,16 @@ module delaunay
                 
             t0 = ONEXT(a)
             
-            do while (t0 /= SYM(c))
+            do while (t0 /= SYM(c))     ! destorys all ccw edges between c and b
                 t1 = ONEXT(t0)
                 call destroy_edge(t0)
                 call remove_edge(del)
                 t0 = t1
             end do
             
-            t0 = ONEXT(c)
+            t0 = ONEXT(c)               
             
-            do while (t0 /= SYM(b))
+            do while (t0 /= SYM(b))     ! destroys all ccw edges between a and c
                 t1 = ONEXT(t0)
                 call destroy_edge(t0)
                 call remove_edge(del)
@@ -441,9 +404,112 @@ module delaunay
             call remove_vertex(del)
             call remove_vertex(del)
             
+            del%finalized = .TRUE.
+        else 
+            print *, "Triangulation cannot be finalized: RPREV() LOOP of del%root does not exist. Ensure del%root is either tm, bl or br?"
+            return
         end if
     end subroutine
     
     
+    
+    
+    subroutine edge_reduce(edge,closure) 
+        integer(c_intptr_t), intent(in) :: edge
+        type(c_ptr), intent(in) :: closure
+        type(edge_acumulator), pointer :: acc
+        call c_f_pointer(closure,acc)
+        
+        acc%edges(acc%index) = edge
+        acc%index = acc%index + 1
+    end subroutine
+    
+    function list_edges (del) result(edges)
+        type(tm_del) :: del
+        integer(c_intptr_t), allocatable :: edges(:)
+        type(edge_acumulator), target :: acc
+        type(c_ptr) :: ptr
+        allocate(acc%edges(del%ec))
+        acc%edges = 0
+        acc%index = 1
+        ptr = c_loc(acc)
+        
+        call quad_enum(del%root, edge_reduce, ptr) 
+        edges = acc%edges
+    end function
+    
+    function get_mesh (del) result (m)
+        type(tm_del) :: del
+        integer(c_intptr_t), allocatable :: list(:)
+        type(mesh) :: m
+        integer(c_intptr_t) :: e0, e1, e2
+        type(edge_struct), pointer :: p0, p1, p2
+        integer(c_intptr_t) :: t0, t1, t2, h0, h1, h2, i, f_idx, v_loc, v_offset
+        integer :: stride
+        
+        stride = SIZEOF(del%vertices(1))
+        v_loc = loc(del%vertices)
+        
+        list = list_edges(del)
+        allocate(m%edges(del%ec), m%faces(euler_faces(del%vc,del%ec)), m%vertices(del%vc))
+        
+        v_offset = 0
+        if (del%finalized) v_offset = 3
+
+        m%vertices = del%vertices(1+v_offset:del%vc+v_offset)
+        
+        do i = 1, del%ec
+            p0 => deref(list(i))
+            p0%mark = ISHFT(i,2)
+        end do
+        
+        f_idx = 1
+        do i = 1, del%ec
+            e0 = list(i)
+            e1 = LNEXT(e0)
+            e2 = LNEXT(e1)
+            
+            if (LNEXT(e2) /= e0) then   ! cw triangle -> ccw triangle
+                e0 = SYM(e0)
+                e1 = LNEXT(e0)
+                e2 = LNEXT(e1)
+                print *, "Inverted Triangle:", e0, e1, e2 
+            end if
+            
+            p0 => deref(e0)
+            p1 => deref(e1)
+            p2 => deref(e2)
+            
+            t0 = (e0 .AND. 2) / 2
+            t1 = (e1 .AND. 2) / 2
+            t2 = (e2 .AND. 2) / 2
+            
+            h0 = p0%mark .AND. ISHFT(1,t0)
+            h1 = p1%mark .AND. ISHFT(1,t1)
+            h2 = p2%mark .AND. ISHFT(1,t2)
+            
+            
+            if (h0 == 0 .AND. h1 == 0 .AND. h2 == 0) then       ! has this orientation of the edges been used before
+                p0%mark = p0%mark .OR. ISHFT(1,t0)
+                p1%mark = p1%mark .OR. ISHFT(1,t1)
+                p2%mark = p2%mark .OR. ISHFT(1,t2)
+                
+                t0 = TRANSFER(ODATA(e0),t0)
+                t1 = TRANSFER(ODATA(e1),t1)
+                t2 = TRANSFER(ODATA(e2),t2)
+                
+                t0 = ((t0 - v_loc) / stride) - v_offset
+                t1 = ((t1 - v_loc) / stride) - v_offset
+                t2 = ((t2 - v_loc) / stride) - v_offset
+                
+                m%faces(f_idx) = vec3_i32(t0,t1,t2)
+                f_idx = f_idx + 1
+            end if
+            
+            h0 = TRANSFER(DDATA(e0),h0)
+            h0 = ((h0 - v_loc) / stride) - v_offset
+            m%edges(i) = vec2_i32(t0,h0)
+        end do
+    end function
     
 end module

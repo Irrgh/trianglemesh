@@ -18,6 +18,9 @@ module vector
         integer(4) :: x,y,z
     end type
     
+    real(8), parameter :: EPS = 1e-6
+    
+    
     contains 
     
     function vec2_f64_add(a,b) result(c)
@@ -136,6 +139,16 @@ module vector
         alpha = ACOS(vec3_f64_dot(a,b) / (vec3_f64_length(a) * vec3_f64_length(b)))
     end function
     
+    function vec2_f64_equals(a,b) result (l)
+        type(vec2_f64) :: a,b
+        logical :: l
+        l = ABS(a%x - b%x) < EPS .AND. ABS(a%y - b%y) < EPS
+    end function
     
+    function vec3_f64_equals(a,b) result (l)
+        type(vec3_f64) :: a,b
+        logical :: l
+        l = ABS(a%x - b%x) < EPS .AND. ABS(a%y - b%y) < EPS .AND. ABS(a%z - b%z) < EPS
+    end function
     
 end module
