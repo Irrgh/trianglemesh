@@ -4,6 +4,11 @@ module delaunay
     use vector
     use euler
     
+    type edge_acumulator
+        integer(c_intptr_t), allocatable :: edges(:)
+        integer :: index
+    end type
+    
     type mesh 
         type(vec3_f64), allocatable :: vertices(:)
         type(vec2_i32), allocatable :: edges(:)
@@ -405,35 +410,67 @@ module delaunay
             return
         end if
     end subroutine
+    
+    
+    subroutine edge_reduce(edge,closure) 
+        integer(c_intptr_t), intent(in) :: edge
+        type(c_ptr), intent(in) :: closure
+        type(edge_acumulator), pointer :: acc
+        call c_f_pointer(closure,acc)
         
-    function list_edges (del) result(edges)
+        acc%edges(acc%index) = edge
+        acc%index = acc%index + 1
+    end subroutine
+    
+    function list_edges_ (del) result(edges)
         type(tm_del) :: del
         integer(c_intptr_t), allocatable :: edges(:)
-        integer(c_intptr_t) :: a,b
+        type(edge_acumulator), target :: acc
+        type(c_ptr) :: ptr
+        allocate(acc%edges(del%ec))
+        acc%edges = 0
+        acc%index = 1
+        ptr = c_loc(acc)
+        
+        call quad_enum(del%root, edge_reduce, ptr) 
+        edges = acc%edges
+    end function
+    
+    
+    
+    function list_edges (del) result(edges)
+        type(tm_del) :: del
+        integer(c_intptr_t), allocatable :: edges(:), stack(:)
+        integer(c_intptr_t) :: e, t
         type(edge_struct), pointer :: edge
         integer :: i,j, mark
         
-        allocate(edges(del%ec))
+        allocate(edges(del%ec), stack(del%ec))
         i = 1
         j = 1
-        next_mark = next_mark + 1
         mark = next_mark
+        next_mark = next_mark + 1
         edges(1) = del%root
+        stack(1) = del%root
         
         do while (i < del%ec .AND. j < del%ec)
             
-            a = edges(i)
-            b = a
-            edge => deref(b)
-            do while (edge%mark /= mark)
-                j = j + 1
-                edge%mark = mark
-                edges(j) = ONEXT(SYM(b))
-                b = ONEXT(b)
-                edge => deref(b)
-            end do
+            e = stack(j-i+1)
             i = i + 1
+            edge => deref(e)
+            do while (edge%mark /= mark)
+                
+                t = ONEXT(SYM(e))
+                j = j + 1
+                edges(j) = t
+                stack(j-i+1) = t
+                edge%mark = mark
+                e = ONEXT(e)
+                edge => deref(e)
+            end do
+            
         end do    
+        deallocate(stack)
     end function
     
     function get_mesh (del) result (m)
@@ -449,6 +486,7 @@ module delaunay
         v_loc = loc(del%vertices)
         
         list = list_edges(del)
+        
         allocate(m%edges(del%ec), m%faces(euler_faces(del%vc,del%ec)), m%vertices(del%vc))
         
         v_offset = 0
@@ -471,7 +509,7 @@ module delaunay
                 e0 = SYM(e0)
                 e1 = LNEXT(e0)
                 e2 = LNEXT(e1)
-                if (LNEXT(e2) /= e0) then
+                if (LNEXT(e2) == e0) then
                     print *, "Inverted Triangle:", e0, e1, e2 
                 else
                     print *, "wtf", i, f_idx
