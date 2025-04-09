@@ -19,9 +19,9 @@ module quad_edge
         integer(c_int64_t) :: mark
     end type
     
-    integer(c_int64_t) :: nextMark = 1
+    integer(c_int64_t) :: next_mark = 1
     
-    private nextMark, quad_do_enum
+    private quad_do_enum
     
     contains
     
@@ -332,15 +332,12 @@ module quad_edge
         procedure(visit_proc) :: v_proc
         type(c_ptr),intent(in) :: closure
         integer(c_int64_t) :: mark
-        type(edge_struct), pointer :: eee
-        mark = nextMark
-        nextMark = nextMark + 1
+        mark = next_mark
+        next_mark = next_mark + 1
         
-        if (nextMark == 0) then 
-            nextMark = 1
+        if (next_mark == 0) then 
+            next_mark = 1
         end if
-        
-        eee => deref(a)
         
         call quad_do_enum(a,v_proc,closure,mark)
     end subroutine
@@ -363,6 +360,7 @@ module quad_edge
         edge => NULL()
     end subroutine
     
+
     subroutine test_print(e,c)
         integer(c_intptr_t), intent(in) :: e
         type(c_ptr), intent(in) :: c

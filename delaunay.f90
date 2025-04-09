@@ -4,11 +4,6 @@ module delaunay
     use vector
     use euler
     
-    type edge_acumulator
-        integer(c_intptr_t), allocatable :: edges(:)
-        integer :: index
-    end type
-    
     type mesh 
         type(vec3_f64), allocatable :: vertices(:)
         type(vec2_i32), allocatable :: edges(:)
@@ -250,13 +245,13 @@ module delaunay
         t1 = vec3_f64_length(vec3_f64_sub(p,o))
         t2 = vec3_f64_length(vec3_f64_sub(p,d))
         
-        if (t1 < EPS .OR. t2 < EPS) then
+        if (t1 < EPSILON .OR. t2 < EPSILON) then
             l = .TRUE.
             return
         end if
         t3 = vec3_f64_length(vec3_f64_sub(o, d))
         
-        l = abs(tri_area(p,o,d)) < EPS * 2 * t3
+        l = abs(tri_area(p,o,d)) < EPSILON * 2 * t3
     end function
     
     ! Finds one edge of the triangle of the delaunay triangulation that contains the point.
@@ -410,32 +405,35 @@ module delaunay
             return
         end if
     end subroutine
-    
-    
-    
-    
-    subroutine edge_reduce(edge,closure) 
-        integer(c_intptr_t), intent(in) :: edge
-        type(c_ptr), intent(in) :: closure
-        type(edge_acumulator), pointer :: acc
-        call c_f_pointer(closure,acc)
         
-        acc%edges(acc%index) = edge
-        acc%index = acc%index + 1
-    end subroutine
-    
     function list_edges (del) result(edges)
         type(tm_del) :: del
         integer(c_intptr_t), allocatable :: edges(:)
-        type(edge_acumulator), target :: acc
-        type(c_ptr) :: ptr
-        allocate(acc%edges(del%ec))
-        acc%edges = 0
-        acc%index = 1
-        ptr = c_loc(acc)
+        integer(c_intptr_t) :: a,b
+        type(edge_struct), pointer :: edge
+        integer :: i,j, mark
         
-        call quad_enum(del%root, edge_reduce, ptr) 
-        edges = acc%edges
+        allocate(edges(del%ec))
+        i = 1
+        j = 1
+        next_mark = next_mark + 1
+        mark = next_mark
+        edges(1) = del%root
+        
+        do while (i < del%ec .AND. j < del%ec)
+            
+            a = edges(i)
+            b = a
+            edge => deref(b)
+            do while (edge%mark /= mark)
+                j = j + 1
+                edge%mark = mark
+                edges(j) = ONEXT(SYM(b))
+                b = ONEXT(b)
+                edge => deref(b)
+            end do
+            i = i + 1
+        end do    
     end function
     
     function get_mesh (del) result (m)
@@ -473,7 +471,11 @@ module delaunay
                 e0 = SYM(e0)
                 e1 = LNEXT(e0)
                 e2 = LNEXT(e1)
-                print *, "Inverted Triangle:", e0, e1, e2 
+                if (LNEXT(e2) /= e0) then
+                    print *, "Inverted Triangle:", e0, e1, e2 
+                else
+                    print *, "wtf", i, f_idx
+                end if
             end if
             
             p0 => deref(e0)
@@ -510,6 +512,10 @@ module delaunay
             h0 = ((h0 - v_loc) / stride) - v_offset
             m%edges(i) = vec2_i32(t0,h0)
         end do
+        
+        print *, euler_faces(del%vc,del%ec), f_idx
+        
     end function
+    
     
 end module

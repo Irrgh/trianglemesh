@@ -37,15 +37,15 @@ program main
     !    end do
     !end do
     
-    call init(del, 100.0,5000)
+    call init(del, 100.0,150000)
     
     call RANDOM_SEED()
-    do i = 1, 5000
+    do i = 1, 150000
         call RANDOM_NUMBER(x)
         call RANDOM_NUMBER(y)
         x = x*120-60
         y = y*120-60
-        if (MOD(i,10) == 0) then
+        if (MOD(i,100) == 0) then
             print *, i
         end if
         
@@ -57,10 +57,13 @@ program main
     
     print *, del%vc, del%ec, euler_faces(del%vc, del%ec)
     
+    
     m = get_mesh(del)
+    print *, "Mesh created successfully"
  
     call openBin("delaunay_faces.bin",10)
     write(10) m%faces
+    
     close(10)
     
     call openBin("delaunay_vertex.bin",11)

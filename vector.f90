@@ -103,6 +103,18 @@ module vector
         l = SQRT(v%x**2 + v%y**2 + v%z**2)
     end function
     
+    function vec2_f64_dist(a,b) result (d)
+        type(vec2_f64) :: a,b
+        real(8) :: d
+        d = vec2_f64_length(vec2_f64_sub(a,b))
+    end function
+    
+    function vec3_f64_dist(a,b) result (d)
+        type(vec3_f64) :: a,b
+        real(8) :: d
+        d = vec3_f64_length(vec3_f64_sub(a,b))
+    end function
+    
     function vec2_f64_norm(v) result (v_)
         type(vec2_f64) :: v, v_
         v_ = vec2_f64_scale(v,1 / vec2_f64_length(v))
@@ -124,6 +136,23 @@ module vector
         real(8) :: d
         d = a%x * b%x + a%y * b%y + a%z * b%z
     end function
+    
+    function vec2_f64_cross(a,b) result (c)
+        type(vec2_f64) :: a,b
+        type(vec3_f64) :: c
+        c%x = 0
+        c%y = 0
+        c%z = a%x * b%y - a%y * b%x
+    end function
+    
+    function vec3_f64_cross(a,b) result (c)
+        type(vec3_f64) :: a,b,c
+        c%x = a%y * b%z - a%z * b%y
+        c%y = a%z * b%x - a%x * b%z
+        c%z = a%x * b%y - a%y * b%x
+    end function
+    
+    
     
     function vec2_f64_angle(a,b) result (alpha)
         type(vec2_f64) :: a,b
@@ -150,5 +179,38 @@ module vector
         logical :: l
         l = ABS(a%x - b%x) < EPS .AND. ABS(a%y - b%y) < EPS .AND. ABS(a%z - b%z) < EPS
     end function
+    
+    function vec3_f64_in_sphere(a,b,c,d) result (l)
+        type(vec3_f64) :: a,b,c,d,bc,ca,ab,o,bary
+        logical :: l
+        real(8) :: l0, l1, l2, r, sum
+        
+        bc = vec3_f64_sub(b,c)
+        ca = vec3_f64_sub(c,a)
+        ab = vec3_f64_sub(a,b)
+        
+        l0 = vec3_f64_length(bc)
+        l1 = vec3_f64_length(ca)
+        l2 = vec3_f64_length(ab)
+        
+        bary%x = (l1**2 + l2**2 - l0**2)
+        bary%y = (l2**2 + l0**2 - l1**2)
+        bary%z = (l0**2 + l1**2 - l2**2)
+        
+        sum = bary%x + bary%y + bary%z
+        
+        bary%x = bary%x / sum
+        bary%y = bary%y / sum
+        bary%z = bary%z / sum
+        
+        o%x = bary%x * a%x + bary%y * b%x + bary%z * c%x
+        o%x = bary%x * a%y + bary%y * b%y + bary%z * c%y
+        o%x = bary%x * a%z + bary%y * b%z + bary%z * c%z
+        
+        r = vec3_f64_dist(o,a)
+        
+        l = vec3_f64_dist(o,d) < r
+    end function
+    
     
 end module

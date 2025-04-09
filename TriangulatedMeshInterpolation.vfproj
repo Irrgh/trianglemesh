@@ -17,8 +17,8 @@
 			<Tool Name="VFManifestTool" SuppressStartupBanner="true"/>
 		</Configuration>
 		<Configuration Name="Debug|x64" UseCompiler="ifxCompiler">
-			<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" WarnInterfaces="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtMultiThreadedDebugDLL"/>
-			<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemConsole"/>
+			<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Preprocess="preprocessYes" WarnInterfaces="true" Traceback="true" RuntimeChecks="rtChecksAll"/>
+			<Tool Name="VFLinkerTool" AdditionalOptions="/FIXED:NO" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemConsole"/>
 			<Tool Name="VFResourceCompilerTool"/>
 			<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 			<Tool Name="VFCustomBuildTool"/>
@@ -39,8 +39,8 @@
 			<Tool Name="VFManifestTool" SuppressStartupBanner="true"/>
 		</Configuration>
 		<Configuration Name="Release|x64" UseCompiler="ifxCompiler">
-			<Tool Name="VFFortranCompilerTool" AdditionalOptions="-check:all -debug:full -traceback" SuppressStartupBanner="true" HeapArrays="0" RuntimeChecks="rtChecksAll" BoundsCheck="true" ArrayShapeCheck="true" StackFrameCheck="true" RuntimeLibrary="rtMultiThreadedDLL"/>
-			<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" SubSystem="subSystemConsole"/>
+			<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Zi" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" HeapArrays="0" Diagnostics="diagnosticsShowAll" RuntimeChecks="rtChecksNone" BoundsCheck="true" ArrayShapeCheck="true" StackFrameCheck="true"/>
+			<Tool Name="VFLinkerTool" AdditionalOptions="/FIXED:NO" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" SubSystem="subSystemConsole"/>
 			<Tool Name="VFResourceCompilerTool"/>
 			<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 			<Tool Name="VFCustomBuildTool"/>
@@ -55,17 +55,12 @@
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 			<File RelativePath=".\convolution.f90"/>
-			<File RelativePath=".\delaunay.f90">
-			</File>
-			<File RelativePath=".\euler.f90">
-			</File>
-			<File RelativePath=".\main.f90">
-			</File>
-			<File RelativePath=".\quad_edge.f90">
-			</File>
+			<File RelativePath=".\delaunay.f90"/>
+			<File RelativePath=".\euler.f90"/>
+			<File RelativePath=".\main.f90"/>
+			<File RelativePath=".\quad_edge.f90"/>
 			<File RelativePath=".\tm_data.f90"/>
-			<File RelativePath=".\vector.f90">
-			</File>
+			<File RelativePath=".\vector.f90"/>
 		</Filter>
 	</Files>
 	<Globals/>
