@@ -10,13 +10,13 @@ program main
     integer :: i, j
     type(tm_del) :: del
     type(mesh) :: m
-    real(8) :: x,y
+    real(8) :: x,y,z
     
-    call init(del, 100.0,50000)
+    call init(del, 100.0,500000)
     
    
     call RANDOM_SEED()
-    do i = 1, 50000
+    do i = 1, 500000
         call RANDOM_NUMBER(x)
         call RANDOM_NUMBER(y)
         x = x*120-60
@@ -24,8 +24,8 @@ program main
         if (MOD(i,100) == 0) then
             print *, i
         end if
-        
-        call insert_site(del, vec3_f64(x,y,(SIN(x*0.2) + COS(y*0.2))*4))
+        z = sin(0.5*(x**2+y**2)**0.4) * sin(ATAN2(x,y)*5) * 2 + x / 10
+        call insert_site(del, vec3_f64(x,y,z))
     end do
     
     call finalize(del)

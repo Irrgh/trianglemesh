@@ -17,7 +17,7 @@
 			<Tool Name="VFManifestTool" SuppressStartupBanner="true"/>
 		</Configuration>
 		<Configuration Name="Debug|x64" UseCompiler="ifxCompiler">
-			<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" InterproceduralOptimizations="ipoMultiFile" WarnInterfaces="true" Traceback="true" RuntimeChecks="rtChecksNone"/>
+			<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" InterproceduralOptimizations="ipoMultiFile" OpenMP="OpenMPParallelCode" EnableOpenMPSupport="OpenMPParallelCodeIFX" WarnInterfaces="true" Traceback="true" RuntimeChecks="rtChecksNone"/>
 			<Tool Name="VFLinkerTool" AdditionalOptions="/FIXED:NO" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemConsole"/>
 			<Tool Name="VFResourceCompilerTool"/>
 			<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -57,8 +57,11 @@
 			<File RelativePath=".\convolution.f90"/>
 			<File RelativePath=".\delaunay.f90"/>
 			<File RelativePath=".\euler.f90"/>
-			<File RelativePath=".\main.f90"/>
+			<File RelativePath=".\main.f90">
+			</File>
 			<File RelativePath=".\quad_edge.f90"/>
+			<File RelativePath=".\quadtree.f90">
+			</File>
 			<File RelativePath=".\tm_data.f90"/>
 			<File RelativePath=".\vector.f90"/>
 		</Filter>
