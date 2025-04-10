@@ -296,17 +296,17 @@ module delaunay
         
         if (del%finalized) then
             print *,"Point can not be inserted: Triangulation is finalized."
-            stop
+            return
         end if
         
         if (vec3_f64_length(p) > del%max_radius) then
             print *,"Point can not be inserted: p(",p%x,",",p%y, ") is outside of specified max_radius of ", del%max_radius
-            stop
+            return
         end if
         
         if (del%vc - 3 >= del%capacity) then
             print *, "Point can not be inserted: Maximum capacity of ", del%capacity, " vertices reached."
-            stop
+            return
         end if
         
         e = locate(del,p)       ! one edge of the containing triangle
@@ -441,7 +441,7 @@ module delaunay
     function list_edges (del) result(edges)
         type(tm_del) :: del
         integer(c_intptr_t), allocatable :: edges(:), stack(:)
-        integer(c_intptr_t) :: e, t
+        integer(c_intptr_t) :: e
         type(edge_struct), pointer :: edge
         integer :: i,j, mark
         
@@ -450,25 +450,24 @@ module delaunay
         j = 1
         mark = next_mark
         next_mark = next_mark + 1
-        edges(1) = del%root
+        edges = 0
+        stack = 0
         stack(1) = del%root
         
-        do while (i < del%ec .AND. j < del%ec)
+        do while (j - i + 1 > 0)
             
             e = stack(j-i+1)
-            i = i + 1
+            stack(j-i+1) = 0
             edge => deref(e)
+            i = i + 1
             do while (edge%mark /= mark)
-                
-                t = ONEXT(SYM(e))
-                j = j + 1
-                edges(j) = t
-                stack(j-i+1) = t
+                edges(j) = e 
                 edge%mark = mark
-                e = ONEXT(e)
+                j = j + 1
+                stack(j-i+1) = ONEXT(e)
+                e = ONEXT(SYM(e))
                 edge => deref(e)
             end do
-            
         end do    
         deallocate(stack)
     end function
@@ -479,7 +478,7 @@ module delaunay
         type(mesh) :: m
         integer(c_intptr_t) :: e0, e1, e2
         type(edge_struct), pointer :: p0, p1, p2
-        integer(c_intptr_t) :: t0, t1, t2, h0, h1, h2, i, f_idx, v_loc, v_offset
+        integer(c_intptr_t) :: t0, t1, t2, h0, h1, h2, i, f_idx, v_loc, v_offset, inv_c
         integer :: stride
         
         stride = SIZEOF(del%vertices(1))
@@ -498,7 +497,7 @@ module delaunay
             p0 => deref(list(i))
             p0%mark = ISHFT(i,2)
         end do
-        
+         
         f_idx = 1
         do i = 1, del%ec
             e0 = list(i)
@@ -510,7 +509,8 @@ module delaunay
                 e1 = LNEXT(e0)
                 e2 = LNEXT(e1)
                 if (LNEXT(e2) == e0) then
-                    print *, "Inverted Triangle:", e0, e1, e2 
+                    inv_c = inv_c + 1
+                    print *, "Inverted Triangle:", i
                 else
                     print *, "wtf", i, f_idx
                 end if
@@ -549,10 +549,7 @@ module delaunay
             h0 = TRANSFER(DDATA(e0),h0)
             h0 = ((h0 - v_loc) / stride) - v_offset
             m%edges(i) = vec2_i32(t0,h0)
-        end do
-        
-        print *, euler_faces(del%vc,del%ec), f_idx
-        
+        end do      
     end function
     
     

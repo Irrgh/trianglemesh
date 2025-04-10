@@ -17,9 +17,8 @@ module vector
     type vec3_i32
         integer(4) :: x,y,z
     end type
-    
-    real(8), parameter :: EPS = 1e-6
-    
+        
+    real(8), parameter :: EPS = 1e-9
     
     contains 
     
