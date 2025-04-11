@@ -115,7 +115,7 @@ module delaunay
     ! are valid point to add to the triangulation. 
     subroutine init (del,max_radius,capacity)
         type(tm_del), intent(inout) :: del
-        real, intent(in) :: max_radius
+        real(8), intent(in) :: max_radius
         integer, intent(in) :: capacity
         type(c_ptr) :: t1,t2,t3
         integer(c_intptr_t) :: a, b, c
@@ -126,9 +126,21 @@ module delaunay
         length = 2 * max_radius * SIN((60.0 / 180.0) * pi)  ! half the side length
         height = 2 * max_radius                             ! from center to tm        SQRT(length**2 + max_radius**2)    
         
-        bl = vec3_f64(-length, -max_radius, 0)
-        br = vec3_f64(length, -max_radius, 0)
-        tm = vec3_f64(0, height, 0)
+        bl%arr(1) = -length
+        bl%arr(2) = -max_radius
+        bl%arr(3) = 0
+        
+        br%arr(1) = length
+        br%arr(2) = -max_radius
+        br%arr(3) = 0
+        
+        tm%arr(1) = 0
+        tm%arr(2) = height
+        tm%arr(3) = 0 
+        
+        !bl = vec3_f64_create(-length, -max_radius, 0.0_8)
+        !br = vec3_f64_create(length, -max_radius, 0.0_8)
+        !tm = vec3_f64_create(0.0_8, height, 0.0_8)
         
         del%max_radius = max_radius
         del%capacity = capacity
@@ -207,16 +219,16 @@ module delaunay
     function tri_area(a,b,c) result (area)
         type(vec3_f64) :: a,b,c
         real(8) :: area
-        area = (b%x - a%x) * (c%y - a%y) - (b%y - a%y) * (c%x - a%x)
+        area = (b%arr(1) - a%arr(1)) * (c%arr(2) - a%arr(2)) - (b%arr(2) - a%arr(2)) * (c%arr(1) - a%arr(1))
     end function
     
     function in_circle(a,b,c,d) result (l)
         type(vec3_f64) :: a,b,c,d
         logical :: l
-        l = (a%x**2 + a%y**2) * tri_area(b,c,d) - &
-          & (b%x**2 + b%y**2) * tri_area(a,c,d) + &
-          & (c%x**2 + c%y**2) * tri_area(a,b,d) - &
-          & (d%x**2 + d%y**2) * tri_area(a,b,c) > 0
+        l = (a%arr(1)**2 + a%arr(2)**2) * tri_area(b,c,d) - &
+          & (b%arr(1)**2 + b%arr(2)**2) * tri_area(a,c,d) + &
+          & (c%arr(1)**2 + c%arr(2)**2) * tri_area(a,b,d) - &
+          & (d%arr(1)**2 + d%arr(2)**2) * tri_area(a,b,c) > 0
     end function
     
     function ccw (a,b,c) result(l)
@@ -250,24 +262,32 @@ module delaunay
         t1 = vec3_f64_length(vec3_f64_sub(p,o))
         t2 = vec3_f64_length(vec3_f64_sub(p,d))
         
-        if (t1 < EPSILON .OR. t2 < EPSILON) then
+        if (t1 < EPS .OR. t2 < EPS) then
             l = .TRUE.
             return
         end if
         t3 = vec3_f64_length(vec3_f64_sub(o, d))
         
-        l = abs(tri_area(p,o,d)) < EPSILON * 2 * t3
+        l = abs(tri_area(p,o,d)) < EPS * 2 * t3
     end function
     
     ! Finds one edge of the triangle of the delaunay triangulation that contains the point.
     function locate(del, p) result (e)
         type(tm_del) :: del
         type(vec3_f64) :: p
-        integer(c_intptr_t) :: e
+        integer(c_intptr_t) :: e,i
+        type(mesh) :: m
         e = del%root
-        
+        i = 1
    
         do while (.TRUE.)            
+            if (i > del%ec * 2) then 
+                m = get_mesh(del)
+                print *, m%vertices
+                print *, m%faces
+                print *, m%edges
+            end if
+            
             if (vec3_f64_equals(p,org(e)) .OR. vec3_f64_equals(p,dest(e))) then
                 return
             else if (right_of(p,e)) then
@@ -279,6 +299,7 @@ module delaunay
             else
                 return
             end if
+            i = i + 1
         end do
         
         
@@ -300,7 +321,7 @@ module delaunay
         end if
         
         if (vec3_f64_length(p) > del%max_radius) then
-            print *,"Point can not be inserted: p(",p%x,",",p%y, ") is outside of specified max_radius of ", del%max_radius
+            print *,"Point can not be inserted: p(",p%arr(1),",",p%arr(2), ") is outside of specified max_radius of ", del%max_radius
             return
         end if
         
@@ -542,13 +563,13 @@ module delaunay
                 t1 = ((t1 - v_loc) / stride) - v_offset
                 t2 = ((t2 - v_loc) / stride) - v_offset
                 
-                m%faces(f_idx) = vec3_i32(t0,t1,t2)
+                m%faces(f_idx)%arr = (/t0,t1,t2/)
                 f_idx = f_idx + 1
             end if
             
             h0 = TRANSFER(DDATA(e0),h0)
             h0 = ((h0 - v_loc) / stride) - v_offset
-            m%edges(i) = vec2_i32(t0,h0)
+            m%edges(i)%arr = (/t0,h0/)
         end do      
     end function
     

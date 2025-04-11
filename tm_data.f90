@@ -1,51 +1,45 @@
 module tm_data
+    use vector
     implicit none
     
-    type vec3
-        real(8) :: x,y,z                
-    end type
     
-    type vec2
-        real(8) :: x,y
-    end type
-    
-    
-    public vec2, randVec2, vec3, encodePos, decodePos, openBin, readBin, generate_faces
+   
+    public randvec2, encodePos, decodePos, openBin, readBin, generate_faces
     
     contains
     
     
-    function randVec2 () result (res)
-        type (vec2) :: res
-        call RANDOM_NUMBER(res%x)
-        call RANDOM_NUMBER(res%y)
+    function randvec2 () result (res)
+        type (vec2_f64) :: res
+        call RANDOM_NUMBER(res%arr(1))
+        call RANDOM_NUMBER(res%arr(2))
     end function
     
     
     
     ! compresses 3 20 bit reals in a 64 bit integer
     function encodePos (pos) result (enc)
-        type (vec3) :: pos
+        type (vec3_f64) :: pos
         integer(8) :: enc
 
-        enc = INT(pos%x * 1000,8)
+        enc = INT(pos%arr(1) * 1000,8)
         enc = ISHFT(enc,20)
-        enc = OR(enc, INT(pos%y * 1000,8))
+        enc = OR(enc, INT(pos%arr(2) * 1000,8))
         enc = ISHFT(enc,20)
-        enc = OR(enc, INT(pos%z * 1000,8))     
+        enc = OR(enc, INT(pos%arr(3) * 1000,8))     
     end function
     
     ! decompresses 3 20 bit reals from a 64 bit integer
     function decodePos (enc) result (pos)
-        type (vec3) :: pos
+        type (vec3_f64) :: pos
         integer(8) :: enc
         integer(4), parameter :: shiftConst = ISHFT(1,20) - 1
         
-        pos%z = real(AND(enc,shiftConst),8) / 1000
+        pos%arr(3) = real(AND(enc,shiftConst),8) / 1000
         enc = ISHFT(enc,-20)
-        pos%y = real(AND(enc,shiftConst),8) / 1000
+        pos%arr(2) = real(AND(enc,shiftConst),8) / 1000
         enc = ISHFT(enc,-20)
-        pos%x = real(AND(enc,shiftConst),8) / 1000
+        pos%arr(1) = real(AND(enc,shiftConst),8) / 1000
     end function
     
     

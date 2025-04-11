@@ -4,19 +4,21 @@ program main
     use delaunay
     use vector
     use euler
+    use quadtree
     use, intrinsic :: iso_c_binding
     implicit none
     character(len = *), parameter :: in_file = "C:\Temp\Mediafunction_hpt_50_50.bin"
     integer :: i, j
     type(tm_del) :: del
     type(mesh) :: m
+    type(quad_bvh) :: bvh
     real(8) :: x,y,z
     
-    call init(del, 100.0,500000)
+    call init(del, 100.0_8,50)
     
    
     call RANDOM_SEED()
-    do i = 1, 500000
+    do i = 1, 50
         call RANDOM_NUMBER(x)
         call RANDOM_NUMBER(y)
         x = x*120-60
@@ -25,7 +27,7 @@ program main
             print *, i
         end if
         z = sin(0.5*(x**2+y**2)**0.4) * sin(ATAN2(x,y)*5) * 2 + x / 10
-        call insert_site(del, vec3_f64(x,y,z))
+        call insert_site(del, vec3_f64_create(x,y,z))
     end do
     
     call finalize(del)
@@ -35,6 +37,13 @@ program main
     
     
     m = get_mesh(del)
+    
+    call quad_bvh_create(bvh,m)
+    
+    
+    
+    
+    
     print *, "Mesh created successfully"
  
     call openBin("delaunay_faces.bin",10)
