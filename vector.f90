@@ -3,19 +3,19 @@ module vector
     
     
     type vec2_f64
-        real(8) :: arr(2)
+        real(8) :: arr(2) = 0.0
     end type
     
     type vec3_f64
-        real(8) :: arr(3)
+        real(8) :: arr(3) = 0.0
     end type
     
     type vec2_i32
-        integer(4) :: arr(2)
+        integer(4) :: arr(2) = 0
     end type
     
     type vec3_i32
-        integer(4) :: arr(3)
+        integer(4) :: arr(3) = 0
     end type
         
     real(8), parameter :: EPS = 1e-9

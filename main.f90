@@ -14,11 +14,11 @@ program main
     type(quad_bvh) :: bvh
     real(8) :: x,y,z
     
-    call init(del, 100.0_8,50)
+    call init(del, 100.0_8,80000)
     
    
     call RANDOM_SEED()
-    do i = 1, 50
+    do i = 1, 80000
         call RANDOM_NUMBER(x)
         call RANDOM_NUMBER(y)
         x = x*120-60
@@ -40,7 +40,15 @@ program main
     
     call quad_bvh_create(bvh,m)
     
-    
+    j = 0
+    do i=1, bvh%nodes_used
+        
+        if (bvh%nodes(i)%prim_count > 0) then
+            print *, i, bvh%nodes(i)%prim_count
+            j = j + bvh%nodes(i)%prim_count
+        end if
+            
+    end do
     
     
     
