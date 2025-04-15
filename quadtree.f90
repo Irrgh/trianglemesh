@@ -11,6 +11,9 @@ module quadtree
         type(vec3_f64) :: c
     end type
     
+    type ray
+        type(vec3_f64) :: org, dir
+    end type
     
     type quad_bvh
         type(node), allocatable :: nodes(:) 
@@ -27,8 +30,8 @@ module quadtree
     
     contains
     
-    function is_leaf(n) result (leaf) 
-        type(node) :: n
+    pure function is_leaf(n) result (leaf) 
+        type(node), intent(in) :: n
         logical :: leaf
         leaf = n%prim_count > 0
     end function
@@ -38,6 +41,25 @@ module quadtree
         d = vec3_f64_add(a,b)
         d = vec3_f64_add(d,c)
         d = vec3_f64_scale(d, 0.3333_8)
+    end function
+    
+    
+    function aabb_center(a,b,c) result (d)
+        type(vec3_f64) :: a,b,c
+        type(vec3_f64) :: d, min, max
+        
+        max%arr = (/-1e30,-1e30,-1e30/)
+        min%arr = (/1e30, 1e30, 1e30/)
+
+        min = vec3_f64_min(min,a)
+        min = vec3_f64_min(min,b)
+        min = vec3_f64_min(min,c)
+        
+        max = vec3_f64_max(max,c)
+        max = vec3_f64_max(max,a)
+        max = vec3_f64_max(max,b)
+        
+        d = vec3_f64_add(vec3_f64_scale(vec3_f64_sub(max,min),0.5_8),min)
     end function
     
     subroutine quad_bvh_create(bvh, m)
@@ -80,7 +102,7 @@ module quadtree
             t%p0 = f%arr(1)+1
             t%p1 = f%arr(2)+1
             t%p2 = f%arr(3)+1
-            t%c = centroid(bvh%vertices(f%arr(1)+1),bvh%vertices(f%arr(2)+1),bvh%vertices(f%arr(3)+1))
+            t%c = aabb_center(bvh%vertices(f%arr(1)+1),bvh%vertices(f%arr(2)+1),bvh%vertices(f%arr(3)+1))
             bvh%tris(i) = t
         end do
         
@@ -125,7 +147,7 @@ module quadtree
         integer(4) :: axis, i, j, left_count, left_index, right_index
         
         n => bvh%nodes(index)
-        if (n%prim_count <= 8) then
+        if (n%prim_count <= 4) then
             return
         end if
         
@@ -151,7 +173,6 @@ module quadtree
         
         left_count = i - n%first_pc
         if (left_count == 0 .OR. left_count == n%prim_count) then
-            !print *, bvh%tris(n%first_pc:n%first_pc+n%prim_count-1)
             return
         end if
     
@@ -170,11 +191,11 @@ module quadtree
         call update_bounds(bvh,right_index)
         
         if (vec3_f64_equals(bvh%nodes(left_index)%min,n%min) .and. vec3_f64_equals(bvh%nodes(left_index)%max,n%max)) then
-            print *, "Left child has same aabb as parent", i
+            print *, "Left child has same aabb as parent", left_index, left_count
         end if
         
         if (vec3_f64_equals(bvh%nodes(right_index)%min,n%min) .and. vec3_f64_equals(bvh%nodes(right_index)%max,n%max)) then
-            print *, "Right child has same aabb as parent", i
+            print *, "Right child has same aabb as parent", right_index, bvh%nodes(right_index)%prim_count
         end if
         
         
@@ -182,6 +203,185 @@ module quadtree
         call subdivide(bvh, right_index)
         
     end subroutine
+    
+    pure function valid_aabb_intersection(tmin) result (l)
+        type(vec2_f64), intent(in) :: tmin
+        logical :: l
+        l = tmin%arr(2) >= 0 .and. tmin%arr(2) >= tmin%arr(1)
+    end function
+    
+    pure function intersection_aabb(aabb_min,aabb_max,r) result (tmin)
+        type(vec3_f64), intent(in) :: aabb_min,aabb_max
+        type(ray), intent(in) :: r
+        type(vec2_f64) :: tmin      ! tmin%arr(1) == entry      tmin%arr(2) == exit
+        type(vec3_f64) :: inv
+        real(8) :: tx1, tx2, ty1, ty2, tz1, tz2
+        inv%arr = 1 / r%org%arr
+        
+        tx1 = (aabb_min%arr(1) - r%org%arr(1)) * inv%arr(1)
+        tx2 = (aabb_max%arr(1) - r%org%arr(1)) * inv%arr(1)
+        
+        tmin%arr(1) = MIN(tx1,tx2)
+        tmin%arr(2) = MAX(tx1,tx2)
+        
+        ty1 = (aabb_min%arr(2) - r%org%arr(2)) * inv%arr(2)
+        ty2 = (aabb_max%arr(2) - r%org%arr(2)) * inv%arr(2)
+        
+        tmin%arr(1) = MAX(tmin%arr(1),MIN(ty1,ty2))
+        tmin%arr(2) = MIN(tmin%arr(2),MAX(ty1,ty2))
+        
+        tz1 = (aabb_min%arr(3) - r%org%arr(3)) * inv%arr(3)
+        tz2 = (aabb_max%arr(3) - r%org%arr(3)) * inv%arr(3)
+        
+        tmin%arr(1) = MAX(tmin%arr(1),MIN(tz1,tz2))
+        tmin%arr(2) = MIN(tmin%arr(2),MAX(tz1,tz2))
+    end function
+    
+    pure function intersection_triangle(bvh,index,r) result(tmin)
+        type(quad_bvh), intent(in) :: bvh
+        integer(4), intent(in) :: index
+        type(ray), intent(in) :: r
+        type(vec3_f64) :: v0, v1, v2, ab, ac, p, t, q
+        real(8) :: tmin, det, inv_det, u, v, w, dist
+        
+        tmin = -1.0
+        
+        v0 = bvh%vertices(bvh%tris(index)%p0)
+        v1 = bvh%vertices(bvh%tris(index)%p1)
+        v2 = bvh%vertices(bvh%tris(index)%p2)
+        
+        ab = vec3_f64_sub(v1,v0)
+        ac = vec3_f64_sub(v2,v0)
+        p = vec3_f64_cross(r%dir,ac)
+        det = vec3_f64_dot(ab,p)
+        
+        if (abs(det) < EPS) then
+            return
+        end if
+    
+        inv_det = 1 / det
+        t = vec3_f64_sub(r%org,v0)
+        u = vec3_f64_dot(t,p) * inv_det
+        
+        if (u < 0.0 .OR. u > 1.0) then
+            return
+        end if
+        
+        q = vec3_f64_cross(t,ab)
+        v = vec3_f64_dot(r%dir,q) * inv_det
+        
+        if (v < 0.0 .OR. u + v > 1.0) then
+            return
+        end if
+        
+        dist = vec3_f64_dot(ac,q) * inv_det
+        if (dist < 0.0) then
+            return
+        end if
+        
+        w = 1.0 - u - v
+        tmin = dist        
+    end function
+    
+    
+    pure function intersection_bvh(bvh,r) result(tmin)
+        type(quad_bvh), intent(in) :: bvh
+        type(ray), intent(in) :: r
+        integer(4) :: intersection_stack(max_depth), s_idx, i
+        real(8) :: tmin, tcurr, distance_stack(max_depth) 
+        type(node) :: root, n, child1, child2
+        type(vec2_f64) :: root_intersection, t1, t2
+        
+        tmin = 1e30
+        s_idx = 1
+        root = bvh%nodes(root_index)
+        root_intersection = intersection_aabb(root%min,root%max,r)
+        
+        if (valid_aabb_intersection(root_intersection)) then
+            intersection_stack(s_idx) = root_index
+            distance_stack(s_idx) = root_intersection%arr(1)
+            s_idx = s_idx + 1
+        end if
+        
+        do while (s_idx > 1)
+            
+            if (tmin < distance_stack(s_idx-1)) then
+                return
+            end if
+            
+            s_idx = s_idx - 1
+            n = bvh%nodes(intersection_stack(s_idx))
+            
+            if (is_leaf(n)) then
+               
+                do i = 1, n%prim_count
+                    tcurr = intersection_triangle(bvh, n%first_pc, r)
+                    if (tcurr >= 0 .and. tcurr < tmin) tmin = tcurr
+                end do
+            else
+                
+                child1 = bvh%nodes(n%first_pc)
+                child2 = bvh%nodes(n%first_pc+1)
+ 
+                t1 = intersection_aabb(child1%min, child1%max, r)
+                t2 = intersection_aabb(child2%min, child2%max, r)
+                
+                if (valid_aabb_intersection(t1) .and. valid_aabb_intersection(t2)) then
+                    if (t1%arr(1) >= 0 .and. t2%arr(1) >= 0) then       ! r%org outside both children
+                        if (t1%arr(1) > t2%arr(1)) then                 ! t2 is closer -> on top of stack
+                            intersection_stack(s_idx) = n%first_pc
+                            intersection_stack(s_idx+1) = n%first_pc + 1
+                            distance_stack(s_idx) = t1%arr(1)
+                            distance_stack(s_idx+1) = t2%arr(1)
+                        else                                            ! t1 is closer -> on top of stack
+                            intersection_stack(s_idx) = n%first_pc + 1
+                            intersection_stack(s_idx+1) = n%first_pc
+                            distance_stack(s_idx) = t2%arr(1)
+                            distance_stack(s_idx+1) = t1%arr(1)
+                        end if
+                    else if (t1%arr(1) < 0 .and. t2%arr(1) < 0) then    ! r%org inside both children
+                        if (t1%arr(2) > t2%arr(2)) then                 ! t2 is closer -> on top of stack
+                            intersection_stack(s_idx) = n%first_pc
+                            intersection_stack(s_idx+1) = n%first_pc + 1
+                            distance_stack(s_idx) = t1%arr(1)
+                            distance_stack(s_idx+1) = t2%arr(1)
+                        else                                            ! t1 is closer -> on top of stack
+                            intersection_stack(s_idx) = n%first_pc + 1
+                            intersection_stack(s_idx+1) = n%first_pc
+                            distance_stack(s_idx) = t2%arr(1)
+                            distance_stack(s_idx+1) = t1%arr(1)
+                        end if
+                    else if (t1%arr(1) < 0) then                        ! r%org inside child1
+                        intersection_stack(s_idx) = n%first_pc + 1
+                        intersection_stack(s_idx+1) = n%first_pc
+                        distance_stack(s_idx) = t2%arr(1)
+                        distance_stack(s_idx+1) = t1%arr(1)
+                    else if (t2%arr(1) < 0) then                        ! r%org inside child2
+                        intersection_stack(s_idx) = n%first_pc
+                        intersection_stack(s_idx+1) = n%first_pc + 1
+                        distance_stack(s_idx) = t1%arr(1)
+                        distance_stack(s_idx+1) = t2%arr(1)
+                    end if
+                    s_idx = s_idx + 2
+                    
+                else
+                    if (valid_aabb_intersection(t1)) then
+                        intersection_stack(s_idx) = n%first_pc
+                        distance_stack(s_idx) = t1%arr(1)
+                        s_idx = s_idx + 1
+                    end if
+                    if (valid_aabb_intersection(t2)) then
+                        intersection_stack(s_idx) = n%first_pc
+                        distance_stack(s_idx) = t2%arr(1)
+                        s_idx = s_idx + 1
+                    end if
+                end if
+            end if
+        end do
+        
+    end function
+    
+    
     
     
     

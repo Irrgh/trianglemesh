@@ -14,11 +14,11 @@ program main
     type(quad_bvh) :: bvh
     real(8) :: x,y,z
     
-    call init(del, 100.0_8,1000)
+    call init(del, 100.0_8,10000)
     
    
     call RANDOM_SEED()
-    do i = 1, 1000
+    do i = 1, 10000
         call RANDOM_NUMBER(x)
         call RANDOM_NUMBER(y)
         x = x*120-60
@@ -50,6 +50,8 @@ program main
             
     end do
     
+    
+    print *, intersection_bvh(bvh,ray(vec3_f64((/0.0_8,0.0_8, 1000.0_8/)), vec3_f64((/0.0_8,0.0_8,-1.0_8/))))
     
     
     print *, "Mesh created successfully"
