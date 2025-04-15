@@ -23,7 +23,8 @@ module delaunay
         real(8) :: max_radius
     end type
     
-    private edge_acumulator, edge_reduce
+    private
+    public tm_del, mesh, init, insert_site, get_mesh, list_edges, finalize
     
     contains
     

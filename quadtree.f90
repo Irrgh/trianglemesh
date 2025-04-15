@@ -1,6 +1,6 @@
 module quadtree
-    use delaunay
     use vector
+    use delaunay
     implicit none
     
     integer(4), parameter :: root_index = 1
@@ -45,6 +45,8 @@ module quadtree
         type(mesh), intent(in) :: m
         type(node), pointer :: root
         
+        print *, SIZE(m%vertices), SIZE(m%edges), SIZE(m%faces)
+        
         allocate(bvh%vertices(SIZE(m%vertices)))
         allocate(bvh%nodes(SIZE(m%faces)))
         allocate(bvh%tris(SIZE(m%faces)))
@@ -60,6 +62,8 @@ module quadtree
         
         
         call update_bounds(bvh,root_index)
+        
+        
         call subdivide(bvh,root_index)
         
     end subroutine
@@ -71,7 +75,6 @@ module quadtree
         type(vec3_i32) :: f
         integer(4) :: i
         
-        !!OMP$ SIMD                
         do i = 1, SIZE(faces)
             f = faces(i)
             t%p0 = f%arr(1)+1
@@ -86,10 +89,10 @@ module quadtree
     subroutine update_bounds (bvh,index)
         type(quad_bvh), intent(inout), target :: bvh
         integer(4), intent(in) :: index
-        real(8), parameter :: min = 1e30
-        real(8), parameter :: max = -1e30
+        real(8), parameter :: min = -1e30
+        real(8), parameter :: max = 1e30
         type(node), pointer :: n
-        type(triangle), pointer :: tri
+        type(triangle) :: tri
         integer(4) :: i
         
         n => bvh%nodes(index)
@@ -98,17 +101,18 @@ module quadtree
         
         do i=1, n%prim_count
             
-            tri => bvh%tris(n%first_pc+i-1)
+            tri = bvh%tris(n%first_pc+i-1)
             
-            call vec3_f64_min(n%min,n%min,bvh%vertices(tri%p0))
-            call vec3_f64_min(n%min,n%min,bvh%vertices(tri%p1))
-            call vec3_f64_min(n%min,n%min,bvh%vertices(tri%p2))
+            n%min = vec3_f64_min(n%min,bvh%vertices(tri%p0))
+            n%min = vec3_f64_min(n%min,bvh%vertices(tri%p1))
+            n%min = vec3_f64_min(n%min,bvh%vertices(tri%p2))
             
-            call vec3_f64_max(n%max,n%max,bvh%vertices(tri%p0))
-            call vec3_f64_max(n%max,n%max,bvh%vertices(tri%p1))
-            call vec3_f64_max(n%max,n%max,bvh%vertices(tri%p2))
+            n%max = vec3_f64_max(n%max,bvh%vertices(tri%p0))
+            n%max = vec3_f64_max(n%max,bvh%vertices(tri%p1))
+            n%max = vec3_f64_max(n%max,bvh%vertices(tri%p2))
             
-        end do
+        end do  
+        n => NULL()
     end subroutine
     
     recursive subroutine subdivide(bvh,index)
@@ -121,8 +125,7 @@ module quadtree
         integer(4) :: axis, i, j, left_count, left_index, right_index
         
         n => bvh%nodes(index)
-        if (n%prim_count <= 4) then
-          
+        if (n%prim_count <= 8) then
             return
         end if
         
@@ -130,13 +133,11 @@ module quadtree
         dim = vec3_f64_sub(n%max,n%min)
         axis = 1
         if (dim%arr(2) > dim%arr(1)) axis = 2
-        !if (dim%arr(3) > dim%arr(axis)) axis = 3
         split_pos = n%min%arr(axis) + dim%arr(axis) * 0.5
         
         i = n%first_pc
         j = i + n%prim_count - 1
-        
-        
+            
         do while (i <= j)
             if (bvh%tris(i)%c%arr(axis) < split_pos) then
                 i = i + 1
@@ -150,7 +151,7 @@ module quadtree
         
         left_count = i - n%first_pc
         if (left_count == 0 .OR. left_count == n%prim_count) then
-            !print *, index, left_count, n%prim_count
+            !print *, bvh%tris(n%first_pc:n%first_pc+n%prim_count-1)
             return
         end if
     
@@ -167,6 +168,15 @@ module quadtree
         
         call update_bounds(bvh,left_index)
         call update_bounds(bvh,right_index)
+        
+        if (vec3_f64_equals(bvh%nodes(left_index)%min,n%min) .and. vec3_f64_equals(bvh%nodes(left_index)%max,n%max)) then
+            print *, "Left child has same aabb as parent", i
+        end if
+        
+        if (vec3_f64_equals(bvh%nodes(right_index)%min,n%min) .and. vec3_f64_equals(bvh%nodes(right_index)%max,n%max)) then
+            print *, "Right child has same aabb as parent", i
+        end if
+        
         
         call subdivide(bvh,left_index)
         call subdivide(bvh, right_index)
