@@ -15,11 +15,11 @@ module quad_edge
     
     type edge_struct
         integer(c_intptr_t) :: next(4)
-        type(c_ptr) :: data(4)
-        integer(c_int64_t) :: mark
+        integer(4) :: data(4)
+        integer(4) :: mark
     end type
     
-    integer(c_int64_t) :: next_mark = 1
+    integer(4) :: next_mark = 1
     
     private quad_do_enum
     
@@ -146,7 +146,7 @@ module quad_edge
     
     function ODATA (e) result (odata_v)
         integer(c_intptr_t), intent(in) :: e
-        type(c_ptr) :: odata_v
+        integer(4) :: odata_v
         type(edge_struct), pointer :: edge
         edge => deref(e)
         odata_v = edge%data((e .AND. 3)+1)
@@ -154,7 +154,7 @@ module quad_edge
     
     function RDATA (e) result (rdata_v)
         integer(c_intptr_t), intent(in) :: e
-        type(c_ptr) :: rdata_v
+        integer(4) :: rdata_v
         type(edge_struct), pointer :: edge
         edge => deref(e)
         rdata_v = edge%data(((e+1) .AND. 3)+1)
@@ -162,7 +162,7 @@ module quad_edge
     
     function DDATA (e) result (ddata_v)
         integer(c_intptr_t), intent(in) :: e
-        type(c_ptr) :: ddata_v
+        integer(4) :: ddata_v
         type(edge_struct), pointer :: edge
         edge => deref(e)
         ddata_v = edge%data(((e+2) .AND. 3)+1)
@@ -170,7 +170,7 @@ module quad_edge
     
     function LDATA (e) result (ldata_v)
         integer(c_intptr_t), intent(in) :: e
-        type(c_ptr) :: ldata_v
+        integer(4) :: ldata_v
         type(edge_struct), pointer :: edge
         edge => deref(e)
         ldata_v = edge%data(((e+3) .AND. 3)+1)
@@ -192,7 +192,7 @@ module quad_edge
         edge%next(3) = SYM(e)   ! SYMDNEXT
         edge%next(2) = TOR(e)   ! ROTRNEXT
         edge%next(4) = ROT(e)   ! TORLNEXT
-        edge%data = c_null_ptr
+        edge%data = 0
         edge%mark = 0
     end function
     
@@ -239,7 +239,7 @@ module quad_edge
     
         edge => deref(e)
         edge%next = 0
-        edge%data = c_null_ptr
+        edge%data = 0
         deallocate(edge)
         edge => NULL()
     end subroutine

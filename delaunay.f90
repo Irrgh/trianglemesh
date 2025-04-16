@@ -38,13 +38,13 @@ module delaunay
         del%ec = del%ec - 1
     end subroutine
     
-    function add_vertex (del,vertex) result (addr)
+    function add_vertex (del,vertex) result (idx)
         type(tm_del), target :: del
         type(vec3_f64) :: vertex
-        type(c_ptr) :: addr
+        integer(4) :: idx
         del%vc = del%vc + 1
         del%vertices(del%vc) = vertex
-        addr = c_loc(del%vertices(del%vc))
+        idx = del%vc
     end function
     
     subroutine remove_vertex (del)
@@ -66,7 +66,7 @@ module delaunay
     
     subroutine end_points(e,org,dest)
         integer(c_intptr_t), intent(in) :: e
-        type(c_ptr), intent(in) :: dest, org
+        integer(4), intent(in) :: dest, org
         type(edge_struct), pointer :: tmp
         integer :: io,id
         io = (3 .and. (e .and. 2))+1
@@ -118,7 +118,7 @@ module delaunay
         type(tm_del), intent(inout) :: del
         real(8), intent(in) :: max_radius
         integer, intent(in) :: capacity
-        type(c_ptr) :: t1,t2,t3
+        integer(4) :: t1,t2,t3
         integer(c_intptr_t) :: a, b, c
         type(vec3_f64), target :: bl, br, tm
         real(8) :: length, height
@@ -138,10 +138,6 @@ module delaunay
         tm%arr(1) = 0
         tm%arr(2) = height
         tm%arr(3) = 0 
-        
-        !bl = vec3_f64_create(-length, -max_radius, 0.0_8)
-        !br = vec3_f64_create(length, -max_radius, 0.0_8)
-        !tm = vec3_f64_create(0.0_8, height, 0.0_8)
         
         del%max_radius = max_radius
         del%capacity = capacity
@@ -172,45 +168,46 @@ module delaunay
             
 
     
-    function org(e) result (vec)
-        type(vec3_f64), pointer :: vec
-        integer(c_intptr_t) :: e
-       
-        call c_f_pointer(ODATA(e),vec)
+    function org(del,e) result (vec)
+        type(tm_del), intent(in) :: del
+        integer(c_intptr_t), intent(in) :: e
+        type(vec3_f64) :: vec
+        vec = del%vertices(ODATA(e))
     end function
     
-    function dest(e) result (vec)
-        type(vec3_f64), pointer :: vec
-        integer(c_intptr_t) :: e
-        
-        call c_f_pointer(DDATA(e),vec)
+    function dest(del,e) result (vec)
+        type(tm_del), intent(in) :: del
+        integer(c_intptr_t), intent(in) :: e
+        type(vec3_f64) :: vec
+        vec = del%vertices(DDATA(e))
     end function
     
-    subroutine debug (e)
+    subroutine debug (del,e)
+        type(tm_del), intent(in) :: del
         integer(c_intptr_t), intent(in) :: e
         print *, "----------------------------"
         print *, "e:"
-        print *, org(e), dest(e), e
+        print *, org(del,e), dest(del,e), e
         print *, "SYM(e):"
-        print *, org(SYM(e)), dest(SYM(e)), SYM(e)
+        print *, org(del,SYM(e)), dest(del,SYM(e)), SYM(e)
         print *, "----------------------------"
         print *, "LPREV(e):"
-        print *, org(LPREV(e)), dest(LPREV(e)), LPREV(e)
+        print *, org(del,LPREV(e)), dest(del,LPREV(e)), LPREV(e)
         print *, "ONEXT(e):"
-        print *, org(ONEXT(e)), dest(ONEXT(e)), ONEXT(e)
+        print *, org(del,ONEXT(e)), dest(del,ONEXT(e)), ONEXT(e)
         print *, "DPREV(e):"
-        print *, org(DPREV(e)), dest(DPREV(e)), DPREV(e)
+        print *, org(del,DPREV(e)), dest(del,DPREV(e)), DPREV(e)
         print *, "LNEXT(e):"
-        print *, org(LNEXT(e)), dest(LNEXT(e)), LNEXT(e)
+        print *, org(del,LNEXT(e)), dest(del,LNEXT(e)), LNEXT(e)
         print *, "-----------------------------"
         print *, "OPREV(e):"
-        print *, org(OPREV(e)), dest(OPREV(e)), OPREV(e)
+        print *, org(del,OPREV(e)), dest(del,OPREV(e)), OPREV(e)
         print *, "RNEXT(e):"
-        print *, org(RNEXT(e)), dest(RNEXT(e)), RNEXT(e)
+        print *, org(del,RNEXT(e)), dest(del,RNEXT(e)), RNEXT(e)
         print *, "RPREV(e):"
-        print *, org(RPREV(e)), dest(RPREV(e)), RPREV(e)
+        print *, org(del,RPREV(e)), dest(del,RPREV(e)), RPREV(e)
         print *, "DNEXT(e):"
-        print *, org(DNEXT(e)), dest(DNEXT(e)), DNEXT(e)
+        print *, org(del,DNEXT(e)), dest(del,DNEXT(e)), DNEXT(e)
     end subroutine
     
     
@@ -238,28 +235,32 @@ module delaunay
         l = tri_area(a,b,c) > 0
     end function
     
-    function right_of (p,e) result (l)
-        type(vec3_f64) :: p
-        integer(c_intptr_t) :: e
+    function right_of (del,p,e) result (l)
+        type(tm_del), intent(in) :: del
+        type(vec3_f64), intent(in) :: p
+        integer(c_intptr_t), intent(in) :: e
         logical :: l
-        l = ccw(p,dest(e), org(e))
+        l = ccw(p,dest(del,e), org(del,e))
     end function
     
-    function left_of (p,e) result (l)
-        type(vec3_f64) :: p
-        integer(c_intptr_t) :: e
+    function left_of (del,p,e) result (l)
+        type(tm_del), intent(in) :: del
+        type(vec3_f64), intent(in) :: p
+        integer(c_intptr_t), intent(in) :: e
         logical :: l
-        l = ccw(p,org(e), dest(e))
+        l = ccw(p,org(del,e), dest(del,e))
     end function
     
-    function on_edge(p,e) result (l)
-        type(vec3_f64) :: p, o, d
-        integer(c_intptr_t) :: e
+    function on_edge(del,p,e) result (l)
+        type(tm_del), intent(in) :: del
+        type(vec3_f64), intent(in) :: p
+        type(vec3_f64) :: o, d
+        integer(c_intptr_t), intent(in) :: e
         logical :: l
         real(8) :: t1,t2,t3,m
         
-        o = org(e)
-        d = dest(e)
+        o = org(del,e)
+        d = dest(del,e)
         t1 = vec3_f64_length(vec3_f64_sub(p,o))
         t2 = vec3_f64_length(vec3_f64_sub(p,d))
         
@@ -289,13 +290,13 @@ module delaunay
                 print *, m%edges
             end if
             
-            if (vec3_f64_equals(p,org(e)) .OR. vec3_f64_equals(p,dest(e))) then
+            if (vec3_f64_equals(p,org(del,e)) .OR. vec3_f64_equals(p,dest(del,e))) then
                 return
-            else if (right_of(p,e)) then
+            else if (right_of(del,p,e)) then
                 e = SYM(e)
-            else if (.NOT. right_of(p,ONEXT(e))) then
+            else if (.NOT. right_of(del,p,ONEXT(e))) then
                 e = ONEXT(e)
-            else if (.NOT. right_of(p,DPREV(e))) then
+            else if (.NOT. right_of(del,p,DPREV(e))) then
                 e = DPREV(e)
             else
                 return
@@ -313,7 +314,7 @@ module delaunay
     subroutine insert_site (del,p)
         type(tm_del), intent(inout) :: del
         type(vec3_f64), intent(in), target :: p
-        type(c_ptr) :: tmp
+        integer(4) :: tmp
         integer(c_intptr_t) :: e,b,s,t
         
         if (del%finalized) then
@@ -334,9 +335,9 @@ module delaunay
         e = locate(del,p)       ! one edge of the containing triangle
         
         
-        if (vec3_f64_equals(p,org(e)) .OR. vec3_f64_equals(p,dest(e))) then
+        if (vec3_f64_equals(p,org(del,e)) .OR. vec3_f64_equals(p,dest(del,e))) then
             return
-        else if (on_edge(p,e)) then
+        else if (on_edge(del,p,e)) then
             e = OPREV(e)
             call destroy_edge(ONEXT(e))
             call remove_edge(del)
@@ -359,7 +360,7 @@ module delaunay
         
         do while (.TRUE.)
             t = OPREV(e)
-            if (right_of(dest(t),e) .AND. in_circle(org(e),dest(t), dest(e), p)) then
+            if (right_of(del,dest(del,t),e) .AND. in_circle(org(del,e),dest(del,t), dest(del,e), p)) then
                 call swap(e)
                 e = t
             else if (ONEXT(e) == s) then
@@ -500,11 +501,8 @@ module delaunay
         type(mesh) :: m
         integer(c_intptr_t) :: e0, e1, e2
         type(edge_struct), pointer :: p0, p1, p2
-        integer(c_intptr_t) :: t0, t1, t2, h0, h1, h2, i, f_idx, v_loc, v_offset, inv_c
-        integer :: stride
+        integer(c_intptr_t) :: t0, t1, t2, h0, h1, h2, i, f_idx, v_offset, inv_c
         
-        stride = SIZEOF(del%vertices(1))
-        v_loc = loc(del%vertices)
         
         list = list_edges(del)
         
@@ -556,20 +554,15 @@ module delaunay
                 p1%mark = p1%mark .OR. ISHFT(1,t1)
                 p2%mark = p2%mark .OR. ISHFT(1,t2)
                 
-                t0 = TRANSFER(ODATA(e0),t0)
-                t1 = TRANSFER(ODATA(e1),t1)
-                t2 = TRANSFER(ODATA(e2),t2)
-                
-                t0 = ((t0 - v_loc) / stride) - v_offset
-                t1 = ((t1 - v_loc) / stride) - v_offset
-                t2 = ((t2 - v_loc) / stride) - v_offset
+                t0 = ODATA(e0) - v_offset - 1
+                t1 = ODATA(e1) - v_offset - 1
+                t2 = ODATA(e2) - v_offset - 1
                 
                 m%faces(f_idx)%arr = (/t0,t1,t2/)
                 f_idx = f_idx + 1
             end if
             
-            h0 = TRANSFER(DDATA(e0),h0)
-            h0 = ((h0 - v_loc) / stride) - v_offset
+            h0 = DDATA(e0) - v_offset - 1
             m%edges(i)%arr = (/t0,h0/)
         end do      
     end function
