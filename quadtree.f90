@@ -190,13 +190,13 @@ module quadtree
         call update_bounds(bvh,left_index)
         call update_bounds(bvh,right_index)
         
-        if (vec3_f64_equals(bvh%nodes(left_index)%min,n%min) .and. vec3_f64_equals(bvh%nodes(left_index)%max,n%max)) then
-            print *, "Left child has same aabb as parent", left_index, left_count
-        end if
-        
-        if (vec3_f64_equals(bvh%nodes(right_index)%min,n%min) .and. vec3_f64_equals(bvh%nodes(right_index)%max,n%max)) then
-            print *, "Right child has same aabb as parent", right_index, bvh%nodes(right_index)%prim_count
-        end if
+        !if (vec3_f64_equals(bvh%nodes(left_index)%min,n%min) .and. vec3_f64_equals(bvh%nodes(left_index)%max,n%max)) then
+        !    print *, "Left child has same aabb as parent", left_index, left_count
+        !end if
+        !
+        !if (vec3_f64_equals(bvh%nodes(right_index)%min,n%min) .and. vec3_f64_equals(bvh%nodes(right_index)%max,n%max)) then
+        !    print *, "Right child has same aabb as parent", right_index, bvh%nodes(right_index)%prim_count
+        !end if
         
         
         call subdivide(bvh,left_index)
@@ -216,7 +216,7 @@ module quadtree
         type(vec2_f64) :: tmin      ! tmin%arr(1) == entry      tmin%arr(2) == exit
         type(vec3_f64) :: inv
         real(8) :: tx1, tx2, ty1, ty2, tz1, tz2
-        inv%arr = 1 / r%org%arr
+        inv%arr = 1.0 / r%dir%arr
         
         tx1 = (aabb_min%arr(1) - r%org%arr(1)) * inv%arr(1)
         tx2 = (aabb_max%arr(1) - r%org%arr(1)) * inv%arr(1)
@@ -300,22 +300,21 @@ module quadtree
         if (valid_aabb_intersection(root_intersection)) then
             intersection_stack(s_idx) = root_index
             distance_stack(s_idx) = root_intersection%arr(1)
-            s_idx = s_idx + 1
         end if
         
-        do while (s_idx > 1)
+        do while (s_idx > 0)
             
-            if (tmin < distance_stack(s_idx-1)) then
+            if (tmin < distance_stack(s_idx)) then
                 return
             end if
             
-            s_idx = s_idx - 1
+            
             n = bvh%nodes(intersection_stack(s_idx))
             
             if (is_leaf(n)) then
                
                 do i = 1, n%prim_count
-                    tcurr = intersection_triangle(bvh, n%first_pc, r)
+                    tcurr = intersection_triangle(bvh, n%first_pc+i-1, r)
                     if (tcurr >= 0 .and. tcurr < tmin) tmin = tcurr
                 end do
             else
@@ -371,14 +370,14 @@ module quadtree
                         s_idx = s_idx + 1
                     end if
                     if (valid_aabb_intersection(t2)) then
-                        intersection_stack(s_idx) = n%first_pc
+                        intersection_stack(s_idx) = n%first_pc + 1
                         distance_stack(s_idx) = t2%arr(1)
                         s_idx = s_idx + 1
                     end if
                 end if
             end if
-        end do
-        
+            s_idx = s_idx - 1
+        end do 
     end function
     
     
