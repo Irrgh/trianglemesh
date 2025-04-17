@@ -1,4 +1,4 @@
-module quadtree
+module bvh_acceleration
     use vector
     use delaunay
     implicit none
@@ -7,15 +7,15 @@ module quadtree
     integer(4), parameter :: max_depth = 32
     
     type triangle
-        integer(4) :: p0,p1,p2 = 0
-        type(vec3_f64) :: c
+        type(vec3_i32) :: t     ! triangle indices
+        type(vec3_f64) :: c     ! triangle aabb center
     end type
     
     type ray
         type(vec3_f64) :: org, dir
     end type
     
-    type quad_bvh
+    type tm_bvh
         type(node), allocatable :: nodes(:) 
         type(triangle), allocatable :: tris(:)
         type(vec3_f64), allocatable :: vertices(:)
@@ -59,11 +59,11 @@ module quadtree
         max = vec3_f64_max(max,a)
         max = vec3_f64_max(max,b)
         
-        d = vec3_f64_add(vec3_f64_scale(vec3_f64_sub(max,min),0.5_8),min)
+        d%arr = (max%arr - min%arr) / 2 + min%arr
     end function
     
     subroutine quad_bvh_create(bvh, m)
-        type(quad_bvh), intent(inout), target :: bvh
+        type(tm_bvh), intent(inout), target :: bvh
         type(mesh), intent(in) :: m
         type(node), pointer :: root
         
@@ -79,7 +79,6 @@ module quadtree
         root => bvh%nodes(root_index)
         root%first_pc = 1
         root%prim_count = SIZE(m%faces)
-        
         bvh%nodes_used = 1
         
         
@@ -91,7 +90,7 @@ module quadtree
     end subroutine
     
     subroutine init_tris (bvh,faces) 
-        type(quad_bvh), intent(inout) :: bvh
+        type(tm_bvh), intent(inout) :: bvh
         type(vec3_i32), intent(in), allocatable :: faces(:)
         type(triangle) :: t
         type(vec3_i32) :: f
@@ -99,9 +98,7 @@ module quadtree
         
         do i = 1, SIZE(faces)
             f = faces(i)
-            t%p0 = f%arr(1)+1
-            t%p1 = f%arr(2)+1
-            t%p2 = f%arr(3)+1
+            t%t%arr = f%arr+1
             t%c = aabb_center(bvh%vertices(f%arr(1)+1),bvh%vertices(f%arr(2)+1),bvh%vertices(f%arr(3)+1))
             bvh%tris(i) = t
         end do
@@ -109,12 +106,12 @@ module quadtree
     end subroutine
     
     subroutine update_bounds (bvh,index)
-        type(quad_bvh), intent(inout), target :: bvh
+        type(tm_bvh), intent(inout), target :: bvh
         integer(4), intent(in) :: index
         real(8), parameter :: min = -1e30
         real(8), parameter :: max = 1e30
         type(node), pointer :: n
-        type(triangle) :: tri
+        type(vec3_f64) :: tri(3)
         integer(4) :: i
         
         n => bvh%nodes(index)
@@ -123,22 +120,22 @@ module quadtree
         
         do i=1, n%prim_count
             
-            tri = bvh%tris(n%first_pc+i-1)
+            tri = bvh%vertices(bvh%tris(n%first_pc+i-1)%t%arr)
             
-            n%min = vec3_f64_min(n%min,bvh%vertices(tri%p0))
-            n%min = vec3_f64_min(n%min,bvh%vertices(tri%p1))
-            n%min = vec3_f64_min(n%min,bvh%vertices(tri%p2))
+            n%min = vec3_f64_min(n%min,tri(1))
+            n%min = vec3_f64_min(n%min,tri(2))
+            n%min = vec3_f64_min(n%min,tri(3))
             
-            n%max = vec3_f64_max(n%max,bvh%vertices(tri%p0))
-            n%max = vec3_f64_max(n%max,bvh%vertices(tri%p1))
-            n%max = vec3_f64_max(n%max,bvh%vertices(tri%p2))
+            n%max = vec3_f64_max(n%max,tri(1))
+            n%max = vec3_f64_max(n%max,tri(2))
+            n%max = vec3_f64_max(n%max,tri(3))
             
         end do  
         n => NULL()
     end subroutine
     
     recursive subroutine subdivide(bvh,index)
-        type(quad_bvh), intent(inout), target :: bvh
+        type(tm_bvh), intent(inout), target :: bvh
         integer(4), intent(in) :: index
         type(node), pointer :: n
         type(vec3_f64) :: dim
@@ -155,6 +152,7 @@ module quadtree
         dim = vec3_f64_sub(n%max,n%min)
         axis = 1
         if (dim%arr(2) > dim%arr(1)) axis = 2
+        if (dim%arr(2) > dim%arr(axis)) axis = 3
         split_pos = n%min%arr(axis) + dim%arr(axis) * 0.5
         
         i = n%first_pc
@@ -204,13 +202,13 @@ module quadtree
         
     end subroutine
     
-    pure function valid_aabb_intersection(tmin) result (l)
+    pure elemental function valid_aabb_intersection(tmin) result (l)
         type(vec2_f64), intent(in) :: tmin
         logical :: l
         l = tmin%arr(2) >= 0 .and. tmin%arr(2) >= tmin%arr(1)
     end function
     
-    pure function intersection_aabb(aabb_min,aabb_max,r) result (tmin)
+    pure elemental function intersection_aabb(aabb_min,aabb_max,r) result (tmin)
         type(vec3_f64), intent(in) :: aabb_min,aabb_max
         type(ray), intent(in) :: r
         type(vec2_f64) :: tmin      ! tmin%arr(1) == entry      tmin%arr(2) == exit
@@ -237,18 +235,18 @@ module quadtree
         tmin%arr(2) = MIN(tmin%arr(2),MAX(tz1,tz2))
     end function
     
-    pure function intersection_triangle(bvh,index,r) result(tmin)
-        type(quad_bvh), intent(in) :: bvh
+    pure elemental function intersection_triangle(bvh,index,r) result(tmin)
+        type(tm_bvh), intent(in) :: bvh
         integer(4), intent(in) :: index
         type(ray), intent(in) :: r
         type(vec3_f64) :: v0, v1, v2, ab, ac, p, t, q
-        real(8) :: tmin, det, inv_det, u, v, w, dist
+        real(8) :: tmin, det, inv_det, u, v, dist
         
         tmin = -1.0
         
-        v0 = bvh%vertices(bvh%tris(index)%p0)
-        v1 = bvh%vertices(bvh%tris(index)%p1)
-        v2 = bvh%vertices(bvh%tris(index)%p2)
+        v0 = bvh%vertices(bvh%tris(index)%t%arr(1))
+        v1 = bvh%vertices(bvh%tris(index)%t%arr(2))
+        v2 = bvh%vertices(bvh%tris(index)%t%arr(3))
         
         ab = vec3_f64_sub(v1,v0)
         ac = vec3_f64_sub(v2,v0)
@@ -279,13 +277,12 @@ module quadtree
             return
         end if
         
-        w = 1.0 - u - v
         tmin = dist        
     end function
     
     
-    pure function intersection_bvh(bvh,r) result(tmin)
-        type(quad_bvh), intent(in) :: bvh
+    pure elemental function intersection_bvh(bvh,r) result(tmin)
+        type(tm_bvh), intent(in) :: bvh
         type(ray), intent(in) :: r
         integer(4) :: intersection_stack(max_depth), s_idx, i
         real(8) :: tmin, tcurr, distance_stack(max_depth) 

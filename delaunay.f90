@@ -254,21 +254,27 @@ module delaunay
     function on_edge(del,p,e) result (l)
         type(tm_del), intent(in) :: del
         type(vec3_f64), intent(in) :: p
-        type(vec3_f64) :: o, d
+        type(vec3_f64) :: o, d, v0, v1, v2
         integer(c_intptr_t), intent(in) :: e
         logical :: l
         real(8) :: t1,t2,t3,m
         
         o = org(del,e)
         d = dest(del,e)
-        t1 = vec3_f64_length(vec3_f64_sub(p,o))
-        t2 = vec3_f64_length(vec3_f64_sub(p,d))
+        
+        v0 = vec3_f64_sub(p,o)
+        v1 = vec3_f64_sub(p,d)
+        
+        t1 = SQRT(v0%arr(1)**2 + v0%arr(2)**2)
+        t2 = SQRT(v1%arr(1)**2 + v1%arr(2)**2)
         
         if (t1 < EPS .OR. t2 < EPS) then
             l = .TRUE.
             return
         end if
-        t3 = vec3_f64_length(vec3_f64_sub(o, d))
+        
+        v2 = vec3_f64_sub(o, d)
+        t3 = SQRT(v2%arr(1)**2 + v2%arr(2)**2)
         
         l = abs(tri_area(p,o,d)) < EPS * 2 * t3
     end function
@@ -313,7 +319,7 @@ module delaunay
     ! If point is already contained in the triangulation do nothing.
     subroutine insert_site (del,p)
         type(tm_del), intent(inout) :: del
-        type(vec3_f64), intent(in), target :: p
+        type(vec3_f64), intent(in) :: p
         integer(4) :: tmp
         integer(c_intptr_t) :: e,b,s,t
         
@@ -322,7 +328,7 @@ module delaunay
             return
         end if
         
-        if (vec3_f64_length(p) > del%max_radius) then
+        if (SQRT(p%arr(1)**2 + p%arr(2)**2) > del%max_radius) then
             print *,"Point can not be inserted: p(",p%arr(1),",",p%arr(2), ") is outside of specified max_radius of ", del%max_radius
             return
         end if
