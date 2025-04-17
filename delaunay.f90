@@ -9,7 +9,7 @@ module delaunay
         integer :: index
     end type
     
-    type mesh 
+    type tm_mesh 
         type(vec3_f64), allocatable :: vertices(:)
         type(vec2_i32), allocatable :: edges(:)
         type(vec3_i32), allocatable :: faces(:)
@@ -24,7 +24,7 @@ module delaunay
     end type
     
     private
-    public tm_del, mesh, init, insert_site, get_mesh, list_edges, finalize
+    public tm_del, tm_mesh, init, insert_site, get_mesh, list_edges, finalize
     
     contains
     
@@ -284,7 +284,7 @@ module delaunay
         type(tm_del) :: del
         type(vec3_f64) :: p
         integer(c_intptr_t) :: e,i
-        type(mesh) :: m
+        type(tm_mesh) :: m
         e = del%root
         i = 1
    
@@ -504,7 +504,7 @@ module delaunay
     function get_mesh (del) result (m)
         type(tm_del) :: del
         integer(c_intptr_t), allocatable :: list(:)
-        type(mesh) :: m
+        type(tm_mesh) :: m
         integer(c_intptr_t) :: e0, e1, e2
         type(edge_struct), pointer :: p0, p1, p2
         integer(c_intptr_t) :: t0, t1, t2, h0, h1, h2, i, f_idx, v_offset, inv_c

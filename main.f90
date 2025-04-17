@@ -10,11 +10,10 @@ program main
     implicit none
     character(len = *), parameter :: in_file = "C:\Temp\Mediafunction_hpt_50_50.bin"
     integer :: i, j
-    type(tm_del) :: del, del2
-    type(mesh) :: m,m2
+    type(tm_del) :: del
+    type(tm_mesh) :: m
     type(tm_bvh) :: bvh
     real(8) :: x,y,z, sum, res, approx
-    type(vec3_f64) :: max_delta
     
     call init(del, 100.0_8,500000)
     
@@ -39,7 +38,6 @@ program main
     call quad_bvh_create(bvh,m)
     
     
-    call init(del2,100.0_8, 50000)
     
     
     sum = 0.0
@@ -57,9 +55,6 @@ program main
         
         if (approx < 1e30) then
             sum = sum + abs(res - approx)
-            if (abs(res - approx) > 0.1) then
-                !call insert_site(del2,vec3_f64((/x,y,res/)))
-            end if
         else
             print *, "No intersection at: ", x, y
         end if
@@ -67,11 +62,8 @@ program main
         if (mod(i,100000) == 0) print *, i
     end do
     
-    !call finalize(del2)
-    !m2 = get_mesh(del2)
     
     print *, "Average error for 10m sampled points with a base resolution of 500k points: ", sum / 1e7
-    print *, "Maximum signed error: ", max_delta
     
     
     print *, "Mesh created successfully"
@@ -85,13 +77,6 @@ program main
     write(11) m%vertices
     close(11)
     
-    !call openBin("error_faces.bin",12)
-    !write(12) m2%faces
-    !close(12)
-    !
-    !call openBin("error_vertex.bin",13)
-    !write(13) m2%vertices
-    !close(13)
-    
+      
     
 end program

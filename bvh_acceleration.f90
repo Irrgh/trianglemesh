@@ -24,7 +24,7 @@ module bvh_acceleration
     
     type node
         type(vec3_f64) :: min, max  ! 16 bit
-        integer(4) :: first_pc  ! first prim or child
+        integer(4) :: first_pc  ! first primitive or child
         integer(4) :: prim_count
     end type
     
@@ -64,7 +64,7 @@ module bvh_acceleration
     
     subroutine quad_bvh_create(bvh, m)
         type(tm_bvh), intent(inout), target :: bvh
-        type(mesh), intent(in) :: m
+        type(tm_mesh), intent(in) :: m
         type(node), pointer :: root
         
         print *, SIZE(m%vertices), SIZE(m%edges), SIZE(m%faces)
@@ -94,12 +94,14 @@ module bvh_acceleration
         type(vec3_i32), intent(in), allocatable :: faces(:)
         type(triangle) :: t
         type(vec3_i32) :: f
+        type(vec3_f64) :: tri(3)
         integer(4) :: i
         
         do i = 1, SIZE(faces)
             f = faces(i)
             t%t%arr = f%arr+1
-            t%c = aabb_center(bvh%vertices(f%arr(1)+1),bvh%vertices(f%arr(2)+1),bvh%vertices(f%arr(3)+1))
+            tri = bvh%vertices(f%arr+1)
+            t%c = aabb_center(tri(1),tri(2),tri(3))
             bvh%tris(i) = t
         end do
         
@@ -171,6 +173,7 @@ module bvh_acceleration
         
         left_count = i - n%first_pc
         if (left_count == 0 .OR. left_count == n%prim_count) then
+            print *, index, n%prim_count 
             return
         end if
     
@@ -187,15 +190,6 @@ module bvh_acceleration
         
         call update_bounds(bvh,left_index)
         call update_bounds(bvh,right_index)
-        
-        !if (vec3_f64_equals(bvh%nodes(left_index)%min,n%min) .and. vec3_f64_equals(bvh%nodes(left_index)%max,n%max)) then
-        !    print *, "Left child has same aabb as parent", left_index, left_count
-        !end if
-        !
-        !if (vec3_f64_equals(bvh%nodes(right_index)%min,n%min) .and. vec3_f64_equals(bvh%nodes(right_index)%max,n%max)) then
-        !    print *, "Right child has same aabb as parent", right_index, bvh%nodes(right_index)%prim_count
-        !end if
-        
         
         call subdivide(bvh,left_index)
         call subdivide(bvh, right_index)
